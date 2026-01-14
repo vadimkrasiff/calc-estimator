@@ -6,6 +6,7 @@ import { HeaderProvider } from './header-context';
 import { MaterialsPage } from '@/pages/materials-page/materials-page';
 import { HouseTypesPage } from '@/pages/house-types-page/house-types-page';
 import { HouseTypeDetailPage } from '@/pages/house-type-detail-page/house-type-detail-page';
+import { CalculatorPage } from '@/pages/calculator-page/calculator-page';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -18,14 +19,14 @@ export const router = createBrowserRouter([
       </HeaderProvider>
     ),
     children: [
-      { path: '/', element: <>Калькулятор</> },
+      { path: '/', element: <CalculatorPage /> },
       { path: '/profile', element: <>Профиль</> },
       { path: '/house-types', element: <HouseTypesPage /> },
       { path: '/materials', element: <MaterialsPage /> },
       { path: '/house-types/:id', element: <HouseTypeDetailPage /> },
       {
-        element: <ProtectedRoute adminOnly />,
-        children: [{ path: '/admin/users', element: <>UserListPage</> }],
+        path: '/admin/users',
+        element: <ProtectedRoute adminOnly>UserListPage</ProtectedRoute>,
       },
     ],
   },

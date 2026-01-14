@@ -29,13 +29,13 @@ const headerTabSchema = z.object({
 
 export const headerConfigSchema = z.object({
   title: z.string().optional(),
-  description: z.string().optional(),
+  description: z.string().optional().nullable(),
   buttons: z.array(headerButtonSchema).optional().default([]),
   tabs: z.array(headerTabSchema).optional().default([]),
   showBackButton: z.boolean().optional().default(false),
   onBack: z.function().optional(),
-  onChangeTab: z.any().optional(), // принимает string
-  loading: z.boolean().optional().default(false), // ← новое поле
+  onChangeTab: z.any().optional(),
+  loading: z.boolean().optional().default(false),
 });
 
 export type HeaderConfig = z.infer<typeof headerConfigSchema>;

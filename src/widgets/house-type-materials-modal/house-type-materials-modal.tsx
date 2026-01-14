@@ -2,6 +2,7 @@ import { Modal, Form, InputNumber, Select, Button, Table, message, Flex } from '
 import type { ColumnsType } from 'antd/es/table';
 import { useState, useEffect } from 'react';
 import { useMaterialStore } from '@/entities/material/model/material-store';
+import { getErrorMessage } from '@/shared/api/errorUtils';
 
 interface MaterialRequirement {
   materialId: string;
@@ -24,7 +25,6 @@ interface FormData {
 export const HouseTypeMaterialsModal = ({
   open,
   onClose,
-  // houseTypeId,
   initialMaterials,
   onAddMaterials,
 }: HouseTypeMaterialsModalProps) => {
@@ -51,7 +51,7 @@ export const HouseTypeMaterialsModal = ({
       .then((values: FormData) => {
         const processedValues = {
           ...values,
-          materialId: String(values.materialId), // ← преобразуем в строку
+          materialId: String(values.materialId),
         };
 
         const existingIndex = tempMaterials.findIndex(
@@ -80,7 +80,6 @@ export const HouseTypeMaterialsModal = ({
 
     setLoading(true);
     try {
-      // Преобразуем все materialId в строки перед отправкой
       const processedMaterials = tempMaterials.map(m => ({
         ...m,
         materialId: String(m.materialId),
@@ -161,7 +160,6 @@ export const HouseTypeMaterialsModal = ({
           >
             <InputNumber
               placeholder="Введите количество"
-              // width={'100%'}
               style={{ width: '100%' }}
               min={0.01}
               step={0.01}

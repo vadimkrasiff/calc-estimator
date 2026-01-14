@@ -2,6 +2,7 @@ import { Form, Input, Button, message } from 'antd';
 import type { HouseType } from '@/entities/house-type/model/types';
 import { useHouseTypeStore } from '@/entities/house-type/model/house-type-store';
 import { useEffect } from 'react';
+import { getErrorMessage } from '@/shared/api/errorUtils';
 
 interface HouseTypeGeneralProps {
   houseType: HouseType;
@@ -13,7 +14,6 @@ export const HouseTypeGeneral = ({ houseType }: HouseTypeGeneralProps) => {
 
   useEffect(() => {
     if (houseType) {
-      // ← проверяем, что houseType существует
       form.setFieldsValue({
         name: houseType.name,
         description: houseType.description,
@@ -21,9 +21,8 @@ export const HouseTypeGeneral = ({ houseType }: HouseTypeGeneralProps) => {
     }
   }, [houseType, form]);
 
-  const onFinish = async values => {
+  const onFinish = async (values: Omit<HouseType, 'id'>) => {
     try {
-      // Удаляем description, если он пустой
       const processedValues = {
         ...values,
         ...(values.description === '' ? { description: undefined } : {}),

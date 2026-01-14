@@ -14,7 +14,7 @@ export const DynamicHeader = ({ config }: DynamicHeaderProps) => {
     if (config.onBack) {
       config.onBack();
     } else {
-      navigate(-1); // стандартный возврат
+      navigate(-1);
     }
   };
 
@@ -26,19 +26,18 @@ export const DynamicHeader = ({ config }: DynamicHeaderProps) => {
     }
   };
 
-  // Если loading = true, показываем skeleton
   if (config.loading) {
     return (
       <div
         style={{
-          height: 'auto',
+          height: 150,
           backgroundColor: 'white',
           borderBottom: '1px solid rgba(99, 99, 99, 0.07)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '10px 20px 0',
+          padding: '20px 20px 20px',
           borderRadius: 12,
           width: '100%',
         }}
@@ -51,14 +50,14 @@ export const DynamicHeader = ({ config }: DynamicHeaderProps) => {
   return (
     <div
       style={{
-        height: 'auto',
+        height: 180,
         backgroundColor: 'white',
         borderBottom: '1px solid rgba(99, 99, 99, 0.07)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '10px 20px 0',
+        padding: config?.tabs?.length > 0 ? '20px 20px 0' : '20px 20px',
         borderRadius: 12,
         width: '100%',
       }}
@@ -73,14 +72,15 @@ export const DynamicHeader = ({ config }: DynamicHeaderProps) => {
         }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex' }}>
             {config.showBackButton && (
               <Button icon={<ArrowLeftOutlined />} onClick={handleBack} type="default" />
             )}
             <Typography.Title
               level={2}
               style={{
-                height: 25,
+                marginBottom: 0,
+                lineHeight: 1,
                 marginLeft: config.showBackButton ? 12 : 0,
               }}
             >

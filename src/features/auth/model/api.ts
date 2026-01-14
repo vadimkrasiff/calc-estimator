@@ -1,4 +1,5 @@
 import type { User } from '@/entities/user/model/types';
+import { getErrorMessage } from '@/shared/api/errorUtils';
 import { apiClient } from '@/shared/api/interceptor';
 
 export interface LoginRequest {
@@ -16,22 +17,21 @@ export interface LoginResponse {
     lastName?: string;
   };
 }
-// Вход
+
 export const onLogin = async (credentials: LoginRequest): Promise<LoginResponse> => {
   try {
     const response = await apiClient.post('/auth/login', credentials);
-    return response.data; // возвращает { token, user }
+    return response.data;
   } catch (error) {
     const errorMessage = getErrorMessage(error) || 'Ошибка входа';
     throw new Error(errorMessage);
   }
 };
 
-// Проверка токена (получение профиля)
 export const getProfile = async (): Promise<User> => {
   try {
     const response = await apiClient.get('/auth/profile');
-    return response.data; // возвращает { id, email, role, ... }
+    return response.data;
   } catch (error) {
     const errorMessage = getErrorMessage(error) || 'Ошибка получения профиля';
     throw new Error(errorMessage);

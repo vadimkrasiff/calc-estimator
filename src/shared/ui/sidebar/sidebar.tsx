@@ -10,6 +10,7 @@ import {
   ToolOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
+  TeamOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import Sider from 'antd/es/layout/Sider';
@@ -123,7 +124,14 @@ export const Sidebar = () => {
             mode="inline"
             selectedKeys={[location.pathname]}
             onClick={({ key }) => navigate(key)}
-            items={menuItems}
+            items={
+              user?.role === 'admin'
+                ? [
+                    ...menuItems,
+                    { key: '/admin/users', label: 'Пользователи', icon: <TeamOutlined /> },
+                  ]
+                : menuItems
+            }
             style={{ border: 'none', width: '100%' }}
           />
         </div>

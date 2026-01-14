@@ -1,34 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Tabs as AntdTabs, Skeleton } from 'antd';
-import { useParams } from 'react-router-dom';
+import { Skeleton, Modal, message } from 'antd';
+import { useParams, useNavigate } from 'react-router-dom';
 import { HouseTypeGeneral } from '@/widgets/house-type-detail/house-type-general';
 import { HouseTypeMaterials } from '@/widgets/house-type-detail/house-type-materials';
 import { headerConfigSchema, type HeaderConfig } from '@/shared/lib/header-schema';
 import { useSetHeaderConfig } from '@/app/hooks/use-header';
 import { useHouseTypeStore } from '@/entities/house-type/model/house-type-store';
-
-interface MaterialRequirement {
-  id: string;
-  materialId: string;
-  materialName?: string;
-  quantityPerSqm: number; // количество на 1 кв.м
-}
+import { getErrorMessage } from '@/shared/api/errorUtils';
 
 export const HouseTypeDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const setHeaderConfig = useSetHeaderConfig();
-  const { houseTypes, fetchHouseTypes } = useHouseTypeStore();
+  const { houseTypes, fetchHouseTypes, deleteHouseType } = useHouseTypeStore();
   const [activeTab, setActiveTab] = useState<'general' | 'materials'>('general');
   const [loading, setLoading] = useState(true);
-  const [materials, setMaterials] = useState<MaterialRequirement[]>([]);
 
   const houseType = houseTypes.find(h => h.id == id);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       try {
         await fetchHouseTypes();
-        setMaterials([]);
       } finally {
         setLoading(false);
       }
@@ -50,9 +44,23 @@ export const HouseTypeDetailPage = () => {
           action: {
             type: 'callback',
             fn: () => {
-              if (window.confirm('Вы уверены, что хотите удалить этот тип дома?')) {
-                // TODO: реализовать удаление
-              }
+              Modal.confirm({
+                title: 'Подтверждение удаления',
+                content: `Вы уверены, что хотите удалить тип дома "${houseType?.name}"?`,
+                okText: 'Удалить',
+                okType: 'danger',
+                cancelText: 'Отмена',
+                async onOk() {
+                  try {
+                    await deleteHouseType(id!);
+                    message.success('Тип дома успешно удалён');
+                    navigate('/house-types');
+                  } catch (error) {
+                    message.error(getErrorMessage(error) || 'Ошибка удаления');
+                  }
+                },
+                onCancel() {},
+              });
             },
           },
         },
@@ -67,7 +75,7 @@ export const HouseTypeDetailPage = () => {
     setHeaderConfig(config);
 
     return () => setHeaderConfig(null);
-  }, [houseType, loading, activeTab, setHeaderConfig]);
+  }, [houseType, loading, activeTab, setHeaderConfig, id, deleteHouseType, navigate]);
 
   if (loading) {
     return (
@@ -82,7 +90,7 @@ export const HouseTypeDetailPage = () => {
       {activeTab === 'general' ? (
         <HouseTypeGeneral houseType={houseType!} />
       ) : (
-        <HouseTypeMaterials materials={materials} houseTypeId={id!} />
+        <HouseTypeMaterials houseTypeId={id!} />
       )}
     </div>
   );

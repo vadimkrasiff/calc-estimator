@@ -7,7 +7,7 @@ import { usePriceStore } from '@/entities/price/model/price-store';
 import { useMaterialStore } from '@/entities/material/model/material-store';
 import { PriceModal } from './price-modal';
 import dayjs from 'dayjs';
-import { getErrorMessage } from '@/shared/utils/errorUtils';
+import { getErrorMessage } from '@/shared/api/errorUtils';
 
 export const MaterialPrices = () => {
   const { deletePrice, prices, fetchPrices } = usePriceStore();
@@ -20,7 +20,6 @@ export const MaterialPrices = () => {
     fetchPrices();
   }, [fetchPrices]);
 
-  // Загружаем материалы при монтировании
   useEffect(() => {
     fetchMaterials();
   }, [fetchMaterials]);
@@ -30,7 +29,6 @@ export const MaterialPrices = () => {
       await deletePrice(id);
       message.success('Прайс удален');
     } catch (error) {
-      // Используем утилиту из errorUtils.ts
       const errorMessage = getErrorMessage(error);
       message.error(errorMessage || 'Ошибка удаления');
     }
@@ -47,7 +45,6 @@ export const MaterialPrices = () => {
   };
 
   const handleSelectFocus = async () => {
-    // Загружаем материалы при каждом открытии Select
     await fetchMaterials();
   };
 
@@ -91,9 +88,9 @@ export const MaterialPrices = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
         <Select
           placeholder="Выберите материал"
-          onFocus={handleSelectFocus} // ← загружаем материалы при фокусе
-          value={materialFilter || undefined} // ← убираем значение, если null
-          onChange={setMaterialFilter} // ← фильтруем по материалу
+          onFocus={handleSelectFocus}
+          value={materialFilter || undefined}
+          onChange={setMaterialFilter}
           options={materials.map(m => ({
             label: m.name,
             value: m.id,
