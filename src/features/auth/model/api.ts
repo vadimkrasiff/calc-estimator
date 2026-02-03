@@ -23,6 +23,7 @@ export const onLogin = async (credentials: LoginRequest): Promise<LoginResponse>
     const response = await apiClient.post('/auth/login', credentials);
     return response.data;
   } catch (error) {
+    // Не используем withApiCall, чтобы не было авто-уведомлений
     const errorMessage = getErrorMessage(error) || 'Ошибка входа';
     throw new Error(errorMessage);
   }

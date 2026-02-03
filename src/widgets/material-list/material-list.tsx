@@ -5,13 +5,13 @@ import { useState, useEffect } from 'react';
 import { MaterialModal } from './material-modal';
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { useMaterialStore } from '@/entities/material/model/material-store';
+import { getErrorMessage } from '@/shared/api/errorUtils';
 
 export const MaterialList = () => {
   const { materials, loading, fetchMaterials, deleteMaterial } = useMaterialStore();
   const [open, setOpen] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
 
-  // Загружаем материалы при монтировании
   useEffect(() => {
     fetchMaterials();
   }, [fetchMaterials]);
@@ -31,7 +31,7 @@ export const MaterialList = () => {
       await deleteMaterial(id);
       message.success('Материал удален');
     } catch (err) {
-      message.error(err.message || 'Ошибка удаления');
+      message.error(getErrorMessage(err) || 'Ошибка удаления');
     }
   };
 
@@ -44,8 +44,9 @@ export const MaterialList = () => {
     },
     {
       title: 'Категория',
-      dataIndex: 'category',
-      key: 'category',
+      dataIndex: 'categoryName',
+      key: 'categoryName',
+      render: name => name || '-',
     },
     {
       title: 'Единица измерения',
@@ -56,6 +57,7 @@ export const MaterialList = () => {
       title: 'Описание',
       dataIndex: 'description',
       key: 'description',
+      render: value => value || '-',
     },
     {
       fixed: 'end',

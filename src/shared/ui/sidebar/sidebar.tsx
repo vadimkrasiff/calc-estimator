@@ -6,11 +6,11 @@ import cls from 'classnames';
 import {
   UserOutlined,
   CalculatorOutlined,
-  HomeOutlined,
   ToolOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   TeamOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import Sider from 'antd/es/layout/Sider';
@@ -37,8 +37,8 @@ export const Sidebar = () => {
   };
 
   const menuItems = [
+    { key: '/simple-calc', label: 'Расчет по проекту', icon: <UnorderedListOutlined /> },
     { key: '/', label: 'Калькулятор', icon: <CalculatorOutlined /> },
-    { key: '/house-types', label: 'Типы домов', icon: <HomeOutlined /> },
     { key: '/materials', label: 'Материалы', icon: <ToolOutlined /> },
   ];
 

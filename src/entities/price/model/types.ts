@@ -3,7 +3,14 @@ export interface Price {
   materialId: string;
   materialName?: string;
   price: number;
-  // region: string;
   supplier: string;
   date: string;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }

@@ -66,24 +66,17 @@ export const PriceModal = ({
   const onSaveButtonText = selectedPrice ? 'Сохранить' : 'Добавить';
 
   const onFinish = async (values: Omit<Price, 'id'>) => {
-    try {
-      // Преобразуем materialId в строку, если он пришёл как число
-      const processedValues = {
-        ...values,
-        materialId: String(values.materialId),
-      };
+    const processedValues = {
+      ...values,
+      materialId: String(values.materialId),
+    };
 
-      if (selectedPrice) {
-        await updatePrice(selectedPrice.id, processedValues);
-        message.success('Прайс обновлён');
-      } else {
-        await createPrice(processedValues);
-        message.success('Прайс добавлен');
-      }
-      onClose();
-    } catch (error) {
-      message.error(getErrorMessage(error) || 'Ошибка сохранения');
+    if (selectedPrice) {
+      await updatePrice(selectedPrice.id, processedValues);
+    } else {
+      await createPrice(processedValues);
     }
+    onClose();
   };
 
   return (

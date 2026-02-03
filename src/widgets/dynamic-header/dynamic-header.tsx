@@ -30,7 +30,7 @@ export const DynamicHeader = ({ config }: DynamicHeaderProps) => {
     return (
       <div
         style={{
-          height: 150,
+          // height: 150,
           backgroundColor: 'white',
           borderBottom: '1px solid rgba(99, 99, 99, 0.07)',
           display: 'flex',
@@ -50,14 +50,14 @@ export const DynamicHeader = ({ config }: DynamicHeaderProps) => {
   return (
     <div
       style={{
-        height: 180,
+        // height: 180,
         backgroundColor: 'white',
         borderBottom: '1px solid rgba(99, 99, 99, 0.07)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: config?.tabs?.length > 0 ? '20px 20px 0' : '20px 20px',
+        padding: config?.tabs?.length > 0 ? '19px 20px 0' : '20px 20px',
         borderRadius: 12,
         width: '100%',
       }}
@@ -71,7 +71,7 @@ export const DynamicHeader = ({ config }: DynamicHeaderProps) => {
           width: '100%',
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 4 }}>
           <div style={{ display: 'flex' }}>
             {config.showBackButton && (
               <Button icon={<ArrowLeftOutlined />} onClick={handleBack} type="default" />

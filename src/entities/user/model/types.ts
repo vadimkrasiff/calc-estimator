@@ -14,3 +14,10 @@ export interface User {
   firstName?: string;
   lastName?: string;
 }
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+}

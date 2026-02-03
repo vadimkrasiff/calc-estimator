@@ -36,6 +36,27 @@
   gap: 16px;
 }
 
+.ant-space-compact,
+.ant-input-number {
+  width: 100%;
+}
+.text-wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.form-house-type-general,
+.form-profile-general {
+  .ant-input-disabled,
+  .ant-input-number-input,
+  .ant-input-number,
+  .ant-select-content-value {
+    color: var(--ant-color-text) !important;
+    cursor: default !important;
+    background-color: #f7f7f7;
+  }
+}
+
 a {
   font-weight: 500;
   color: #646cff;

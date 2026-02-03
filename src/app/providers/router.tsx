@@ -4,12 +4,15 @@ import { LoginPage } from '@/pages/login-page';
 import { RootLayout } from '@/widgets/root-layout/root-layout';
 import { HeaderProvider } from './header-context';
 import { MaterialsPage } from '@/pages/materials-page/materials-page';
-import { HouseTypesPage } from '@/pages/house-types-page/house-types-page';
-import { HouseTypeDetailPage } from '@/pages/house-type-detail-page/house-type-detail-page';
 import { CalculatorPage } from '@/pages/calculator-page/calculator-page';
+import { AdminUsersPage } from '@/pages/admin-panel/admin-users-page';
+import { RegisterByInvitationPage } from '@/pages/egister-by-invitation/register-by-invitation-page';
+import { ProfilePage } from '@/pages/profile/profile';
+import { SimpleCalculatorPage } from '@/pages/simple-calculator-page/simple-calculator-page';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/register', element: <RegisterByInvitationPage /> },
   {
     element: (
       <HeaderProvider>
@@ -20,13 +23,16 @@ export const router = createBrowserRouter([
     ),
     children: [
       { path: '/', element: <CalculatorPage /> },
-      { path: '/profile', element: <>Профиль</> },
-      { path: '/house-types', element: <HouseTypesPage /> },
+      { path: '/simple-calc', element: <SimpleCalculatorPage /> },
+      { path: '/profile', element: <ProfilePage /> },
       { path: '/materials', element: <MaterialsPage /> },
-      { path: '/house-types/:id', element: <HouseTypeDetailPage /> },
       {
         path: '/admin/users',
-        element: <ProtectedRoute adminOnly>UserListPage</ProtectedRoute>,
+        element: (
+          <ProtectedRoute adminOnly>
+            <AdminUsersPage />
+          </ProtectedRoute>
+        ),
       },
     ],
   },

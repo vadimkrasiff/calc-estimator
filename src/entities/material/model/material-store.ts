@@ -8,12 +8,12 @@ interface MaterialState {
   loading: boolean;
   error: string | null;
   fetchMaterials: () => Promise<void>;
-  createMaterial: (material: Omit<Material, 'id'>) => Promise<void>;
+  createMaterial: (material: Omit<Material, 'id' | 'createdAt'>) => Promise<void>;
   updateMaterial: (id: string, material: Partial<Omit<Material, 'id'>>) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
 }
 
-export const useMaterialStore = create<MaterialState>(set => ({
+export const useMaterialStore = create<MaterialState>((set, get) => ({
   materials: [],
   loading: false,
   error: null,
@@ -31,23 +31,27 @@ export const useMaterialStore = create<MaterialState>(set => ({
   createMaterial: async material => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.post('/materials', material);
-      set(state => ({ materials: [...state.materials, response.data], loading: false }));
+      await apiClient.post('/materials', material);
+      // set(state => ({ materials: [...state.materials, response.data], loading: false }));
+      get().fetchMaterials();
     } catch (error) {
       set({ error: getErrorMessage(error) || 'Ошибка создания материала', loading: false });
+      throw Error(getErrorMessage(error) || 'Ошибка создания материала');
     }
   },
 
   updateMaterial: async (id, material) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.put(`/materials/${id}`, material);
-      set(state => ({
-        materials: state.materials.map(m => (m.id === id ? response.data : m)),
-        loading: false,
-      }));
+      await apiClient.put(`/materials/${id}`, material);
+      // set(state => ({
+      //   materials: state.materials.map(m => (m.id === id ? response.data : m)),
+      //   loading: false,
+      // }));
+      get().fetchMaterials();
     } catch (error) {
       set({ error: getErrorMessage(error) || 'Ошибка обновления материала', loading: false });
+      throw Error(getErrorMessage(error) || 'Ошибка обновления материала');
     }
   },
 

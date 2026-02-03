@@ -1,9 +1,19 @@
 export interface Material {
   id: string;
   name: string;
-  category: string;
-  unit: string;
   description?: string;
+  unit: string;
+  categoryId?: number;
+  categoryName?: string;
+  createdAt: string;
+  width?: number; // мм
+  height?: number; // мм
+  nominalWidth?: number; // мм
+  nominalHeight?: number;
+  defaultWasteFactor?: number;
+  latestPrice?: number | null;
+  latestSupplier?: string | null;
+  latestPriceDate?: string | null;
 }
 
 export interface MaterialPrice {
@@ -14,3 +24,6 @@ export interface MaterialPrice {
   supplier: string;
   date: string; // ISO string
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyType = any;

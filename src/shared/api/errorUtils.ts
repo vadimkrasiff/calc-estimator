@@ -39,7 +39,7 @@ export function getErrorMessage(error: unknown): string {
   }
 
   if (error instanceof Error) {
-    return getErrorMessage(error);
+    return error.message;
   }
 
   if (typeof error === 'string') {

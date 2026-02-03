@@ -2,6 +2,7 @@ import type { User } from '@/entities/user/model/types';
 import { useEffect, useState, type ReactNode } from 'react';
 import { AuthContext } from './auth-context';
 import { getProfile, onLogin } from '@/features/auth/model/api';
+import { getErrorMessage } from '@/shared/api/errorUtils';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -38,12 +39,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
-    const authData = await onLogin({ email, password });
-    if (authData.token) {
-      // ← теперь token
-      localStorage.setItem('token', authData.token);
-      setUser(authData.user);
-      localStorage.setItem('user', JSON.stringify(authData.user));
+    try {
+      const authData = await onLogin({ email, password });
+
+      if (authData.token) {
+        localStorage.setItem('token', authData.token);
+        setUser(authData.user);
+        localStorage.setItem('user', JSON.stringify(authData.user));
+      }
+
+      return authData;
+    } catch (error) {
+      const errorMessage = getErrorMessage(error) || 'Ошибка входа';
+      throw new Error(errorMessage);
     }
   };
 
