@@ -347,7 +347,7 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                           >
                             <InputNumber
                               style={{ width: '100%' }}
-                              min={1.5}
+                              min={1}
                               max={4.0}
                               step={0.1}
                               precision={2}

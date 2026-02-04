@@ -137,7 +137,6 @@ export const CalculatorPage = () => {
         'ceilings_beams',
         'roofs_trusses',
         'roofs_sheathing',
-        'foundation_piles',
         'foundation_strip',
         'foundation_slab',
         'foundation_columns',
@@ -149,8 +148,8 @@ export const CalculatorPage = () => {
         'roofing_material',
         'interventr_insulation',
         'roof_battens',
-        'addit_foundation_piles',
         'foundation_piles',
+        'addit_foundation_piles',
       ];
 
       console.log(possibleRoles);
@@ -652,7 +651,8 @@ export const CalculatorPage = () => {
           // 🏗️ ФУНДАМЕНТ — СВАЙНЫЙ
           case 'foundation_piles': {
             const area = data.length * data.width;
-            const floorValue = data.floors == 1 ? 1 : 2;
+
+            const floorValue = data.floors == 2 ? 2 : 1;
             quantityRequired = Math.floor((area + 85 * floorValue) / 8);
 
             break;
@@ -661,7 +661,8 @@ export const CalculatorPage = () => {
           case 'addit_foundation_piles': {
             console.log('ss');
             const area = data.length * data.width;
-            const floorValue = data.floors == 1 ? 1 : 2;
+            const floorValue = data.floors == 2 ? 2 : 1;
+
             quantityRequired = Math.floor((area + 85 * floorValue) / 8);
 
             break;
