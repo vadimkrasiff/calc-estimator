@@ -73,7 +73,7 @@ export const useUserStore = create<UserState>(set => ({
   inviteUser: async email => {
     set({ loading: true, error: null });
     try {
-      await apiClient.post('/users/invite', { email });
+      await apiClient.post('/invitations', { email });
       // Не обновляем список - приглашённый пользователь пока не активен
       set({ loading: false });
     } catch (error) {
