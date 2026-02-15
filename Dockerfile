@@ -1,5 +1,5 @@
-# Используем официальный Node.js образ для сборки
-FROM node:18-alpine AS builder
+# Используем официальный Node.js 22 образ для сборки
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
