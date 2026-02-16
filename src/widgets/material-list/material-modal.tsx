@@ -71,16 +71,22 @@ export const MaterialModal = ({
         message.success('Материал добавлен');
       }
       onCloseModal();
+      form.resetFields();
     } catch (error) {
       message.error(getErrorMessage(error) || 'Ошибка сохранения');
     }
+  };
+
+  const onClose = () => {
+    form.resetFields();
+    onCloseModal();
   };
 
   return (
     <Modal
       width={700}
       open={open}
-      onCancel={onCloseModal}
+      onCancel={onClose}
       cancelText={'Закрыть'}
       footer={[]}
       title={title}
@@ -203,7 +209,7 @@ export const MaterialModal = ({
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-          <Button htmlType="reset" onClick={onCloseModal}>
+          <Button htmlType="reset" onClick={onClose}>
             Закрыть
           </Button>
           <Button type="primary" htmlType="submit">
