@@ -278,10 +278,67 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
       openShareModal(shareData.shareUrl, configId);
     }
   };
+  const fallbackCopy = useCallback((text: string) => {
+    // Создаём временное поле
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '-9999px';
+    textarea.setAttribute('readonly', ''); // для безопасности
+    document.body.appendChild(textarea);
 
-  const copyShareLink = () => {
-    navigator.clipboard.writeText(currentShareUrl);
-    message.success('Ссылка скопирована');
+    // Выделяем текст
+    textarea.select();
+    textarea.setSelectionRange(0, 99999); // для мобильных
+
+    // Пробуем скопировать
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        message.success('Ссылка скопирована');
+      } else {
+        // 3. Если execCommand не сработал — показываем ссылку
+        showCopyFallback(text);
+      }
+    } catch {
+      showCopyFallback(text);
+    }
+
+    document.body.removeChild(textarea);
+  }, []);
+
+  const copyShareLink = useCallback(() => {
+    if (!currentShareUrl) {
+      message.error('Ссылка не найдена');
+      return;
+    }
+
+    // 1. Современный API (только HTTPS)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard
+        .writeText(currentShareUrl)
+        .then(() => message.success('Ссылка скопирована'))
+        .catch(() => fallbackCopy(currentShareUrl));
+      return;
+    }
+
+    // 2. Старый метод (HTTP)
+    fallbackCopy(currentShareUrl);
+  }, [currentShareUrl, fallbackCopy]);
+
+  const showCopyFallback = (text: string) => {
+    Modal.info({
+      title: 'Скопируйте вручную',
+      content: (
+        <div>
+          <p>Автоматическое копирование не поддерживается в этом браузере.</p>
+          <Input.TextArea value={text} autoSize={{ minRows: 2, maxRows: 4 }} readOnly />
+        </div>
+      ),
+      onOk: () => {},
+    });
   };
 
   const onFinish = (values: CalculatorFormData) => {
@@ -670,25 +727,35 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                     >
                       Загрузить
                     </Button>,
-                    config.is_public ? (
-                      <Button
-                        key="unshare"
-                        size="small"
-                        danger
-                        onClick={() => unshareConfig(config.id)}
-                      >
-                        Отменить публикацию
-                      </Button>
-                    ) : (
-                      <Button
-                        key="share"
-                        size="small"
-                        icon={<ShareAltOutlined />}
-                        onClick={() => handleShareConfig(config.id)}
-                      >
-                        Поделиться
-                      </Button>
-                    ),
+                    <Space>
+                      {config.is_public ? (
+                        <>
+                          <Button
+                            key="share"
+                            size="small"
+                            icon={<ShareAltOutlined />}
+                            onClick={() => handleShareConfig(config.id)}
+                          />
+                          <Button
+                            key="unshare"
+                            size="small"
+                            danger
+                            onClick={() => unshareConfig(config.id)}
+                          >
+                            Отменить публикацию
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          key="share"
+                          size="small"
+                          icon={<ShareAltOutlined />}
+                          onClick={() => handleShareConfig(config.id)}
+                        >
+                          Поделиться
+                        </Button>
+                      )}
+                    </Space>,
                     <Button
                       key="delete"
                       size="small"
