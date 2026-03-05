@@ -655,38 +655,62 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                     <Typography.Title level={5}>Материалы</Typography.Title>
                   </Form.Item>
                   {allRoles.map(role => (
-                    <Form.Item
+                    <Space.Compact
+                      block
                       key={role.key}
-                      name={role.key}
-                      label={role.label}
-                      style={{ marginBottom: 16 }}
-                      rules={[{ required: true, message: 'Обязательное поле' }]}
+                      style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-end' }}
                     >
-                      <Select
-                        placeholder={`Выберите материал для "${role.label}"`}
-                        showSearch
-                        optionFilterProp="children"
-                        filterOption={(input, option) =>
-                          `${option?.label || ''}`.toLowerCase().includes(input.toLowerCase())
-                        }
+                      <Form.Item
+                        name={role.key}
+                        label={role.label}
+                        style={{ flex: 2, marginBottom: 0 }}
+                        rules={[{ required: true, message: 'Обязательное поле' }]}
                       >
-                        {materials
-                          .filter(material =>
-                            role?.category ? material.categoryId === role?.category : true,
-                          )
-                          .map(material => (
-                            <Select.Option
-                              key={material.id}
-                              value={material.id.toString()}
-                              label={`${material.name}  ${material.unit === 'м³' && `(${material.width}×${material.height} мм)`}`}
-                            >
-                              {material.name}{' '}
-                              {material.unit === 'м³' &&
-                                `(${material.width}×${material.height} мм)`}
-                            </Select.Option>
-                          ))}
-                      </Select>
-                    </Form.Item>
+                        <Select
+                          placeholder={`Выберите материал`}
+                          showSearch
+                          optionFilterProp="children"
+                          filterOption={(input, option) =>
+                            `${option?.label || ''}`.toLowerCase().includes(input.toLowerCase())
+                          }
+                          onChange={() => {
+                            // Сбрасываем цену при смене материала
+                            form.setFieldValue([`${role.key}_price`], undefined);
+                          }}
+                        >
+                          {materials
+                            .filter(material =>
+                              role?.category ? material.categoryId === role?.category : true,
+                            )
+                            .map(material => (
+                              <Select.Option
+                                key={material.id}
+                                value={material.id.toString()}
+                                label={`${material.name}  ${material.unit === 'м³' && `(${material.width}×${material.height} мм)`}`}
+                              >
+                                {material.name}{' '}
+                                {material.unit === 'м³' &&
+                                  `(${material.width}×${material.height} мм)`}
+                              </Select.Option>
+                            ))}
+                        </Select>
+                      </Form.Item>
+
+                      <Form.Item
+                        name={`${role.key}_price`}
+                        style={{ flex: 1, marginBottom: 0 }}
+                        tooltip="Цена за единицу материала"
+                      >
+                        <InputNumber
+                          placeholder="Цена"
+                          min={0}
+                          step={10}
+                          precision={2}
+                          style={{ width: '100%' }}
+                          addonAfter="руб."
+                        />
+                      </Form.Item>
+                    </Space.Compact>
                   ))}
                 </>
               );

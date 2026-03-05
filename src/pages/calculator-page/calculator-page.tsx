@@ -1,4 +1,3 @@
-// src/pages/calculator-page/calculator-page.tsx
 import { useState, useEffect } from 'react';
 import { CalculatorForm } from '@/widgets/calculator/calculator-form';
 import { CalculatorResult } from '@/widgets/calculator/calculator-result';
@@ -15,12 +14,11 @@ interface CalculatorFormData {
   width: number;
   floors: number;
   roofType: 'gable' | 'hip' | 'shed' | 'flat';
-  // roofPitch: number;
   ceilingHeights: number[];
   foundationType: 'pile' | 'strip' | 'slab' | 'column';
   categoryHouse: string;
   logCalculationMethod?: 'perimeter' | 'linear';
-  linearWallLength?: number; // ← новое поле
+  linearWallLength?: number;
   linearBottomBindingLength?: number;
   roofHeight: number;
   insulationType: boolean;
@@ -43,7 +41,7 @@ export interface MaterialCost {
   price: number;
   width?: number;
   height?: number;
-  nominalWidth?: number; // мм
+  nominalWidth?: number;
   nominalHeight?: number;
   wasteFactor?: number;
   selectedLengthMm?: number;
@@ -52,6 +50,10 @@ export interface MaterialCost {
   mansardVolume?: number;
   internalWallsVolume?: number;
   quantityPieces?: number;
+
+  // Новое поле для определения типа записи
+  isLabor?: boolean; // true для записей со стоимостью работ
+  laborPricePerUnit?: number; // цена работы за единицу
 }
 
 export const CalculatorPage = () => {
@@ -73,7 +75,6 @@ export const CalculatorPage = () => {
       floorMultiplier: number;
       shapeRatio: number;
       ceilingHeight?: number[];
-      // roofPitch?: number;
       roofHeight?: number;
       floorJoistSpacing?: number;
     };
@@ -140,9 +141,9 @@ export const CalculatorPage = () => {
         'foundation_strip',
         'foundation_slab',
         'foundation_columns',
-        'bottom_binding', // ← новое
-        'ground_floor_beams', // ← новое
-        'upper_floor_beams', // ← новое
+        'bottom_binding',
+        'ground_floor_beams',
+        'upper_floor_beams',
         'insulation',
         'vapor_barrier',
         'roofing_material',
@@ -152,7 +153,6 @@ export const CalculatorPage = () => {
         'addit_foundation_piles',
       ];
 
-      console.log(possibleRoles);
       for (const role of possibleRoles) {
         const materialId = data[role];
         if (!materialId) continue;
@@ -183,6 +183,9 @@ export const CalculatorPage = () => {
         let mansardVolume: number | undefined;
         let internalWallsVolume: number | undefined;
         let quantityPieces: number | undefined = undefined;
+
+        // Получаем цену работы из формы (если есть)
+        const laborPrice = data[`${role}_price`] as number | undefined;
 
         switch (role) {
           // 🏗️ Межвенцовый утеплитель
@@ -388,7 +391,6 @@ export const CalculatorPage = () => {
                 '150x200': 0.18,
                 '180x200': 0.216,
                 '200x200': 0.24,
-                '50x200': 0.06,
                 '250x200': 0.3,
                 '250x250': 0.375,
                 '250x300': 0.45,
@@ -859,6 +861,8 @@ export const CalculatorPage = () => {
             : quantityRequired * wasteFactor;
         const materialTotal = exactQuantity * unitPrice;
         const materialTotalWidthWasteFactor = exactQuantityWidthWasteFactor * unitPrice;
+
+        // Добавляем запись для материала
         materials.push({
           materialId: htm.materialId,
           materialName: htm.materialName || `Материал ${htm.materialId}`,
@@ -884,6 +888,32 @@ export const CalculatorPage = () => {
 
         totalCost += materialTotal;
         totalCostWidthWasteFactor += materialTotalWidthWasteFactor;
+
+        // Если указана цена работы, добавляем отдельную запись для работ
+        if (laborPrice && laborPrice > 0) {
+          const laborTotal = exactQuantity * laborPrice;
+          const laborTotalWithWaste = exactQuantityWidthWasteFactor * laborPrice;
+
+          materials.push({
+            materialId: `labor_${htm.materialId}`,
+            materialName: `Работы: ${htm.materialName}`,
+            quantityRequired: exactQuantity,
+            quantityRequiredWidthWasteFactor: exactQuantityWidthWasteFactor,
+            unit: htm.unit || 'м³',
+            unitPrice: laborPrice,
+            totalCost: laborTotal,
+            totalCostWidthWasteFactor: laborTotalWithWaste,
+            calculationType: `${htm.calculationType}_labor`,
+            description: `Стоимость работ по ${htm.materialName.toLowerCase()}`,
+            price: laborPrice,
+            quantityPieces: quantityPieces,
+            isLabor: true,
+            laborPricePerUnit: laborPrice,
+          });
+
+          totalCost += laborTotal;
+          totalCostWidthWasteFactor += laborTotalWithWaste;
+        }
       }
 
       setResult({
@@ -901,7 +931,6 @@ export const CalculatorPage = () => {
           floorMultiplier,
           shapeRatio,
           ceilingHeight: data.ceilingHeights,
-          // roofPitch: data.roofPitch,
           roofHeight: data.roofHeight,
           floorJoistSpacing: 0.6,
         },

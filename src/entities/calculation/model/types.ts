@@ -14,6 +14,8 @@ export interface CalculatorFormData {
   logCalculationMethod?: 'perimeter' | 'linear';
   linearWallLength?: number;
   linearBottomBindingLength?: number;
+
+  // Поля для материалов
   [key: string]: AnyType;
 }
 
@@ -22,7 +24,7 @@ export interface CalculationConfig {
   user_id: number;
   name: string;
   description?: string;
-  data: CalculatorFormData;
+  data: CalculatorFormData; // Содержит все поля, включая цены (walls_logs_price и т.д.)
   is_public: boolean;
   share_id?: string;
   created_at: string;
@@ -32,7 +34,7 @@ export interface CalculationConfig {
 export interface CreateConfigDto {
   name: string;
   description?: string;
-  data: CalculatorFormData;
+  data: CalculatorFormData; // Все данные формы включаются сюда
 }
 
 export interface UpdateConfigDto {

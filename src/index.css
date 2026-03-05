@@ -683,3 +683,14 @@ button:focus-visible {
   --ant-tabs-item-active-color: #00c000;
   --ant-tabs-card-gutter: 2px;
 }
+
+.group-row,
+.group-row .ant-table-cell.ant-table-cell-fix.ant-table-cell-fix-end,
+.group-row .ant-table-cell.ant-table-cell-fix.ant-table-cell-fix-start {
+  background-color: #e6f4ff !important;
+}
+.group-row:hover .ant-table-cell.ant-table-cell-fix.ant-table-cell-fix-end,
+.group-row:hover td,
+.group-row:hover .ant-table-cell.ant-table-cell-fix.ant-table-cell-fix-start {
+  background-color: #bae0ff !important;
+}

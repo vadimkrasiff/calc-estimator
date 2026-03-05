@@ -6,17 +6,33 @@ import {
   type MaterialWithQuantity,
 } from '@/widgets/simple-calculator/calc-form';
 import { useMaterialStore } from '@/entities/material/model/material-store';
-import { message, Card } from 'antd';
+import { message } from 'antd';
 import { useEffect, useState } from 'react';
 import { CalculationResultTable } from '@/widgets/simple-calculator/calc-result';
+
+export interface MaterialCost {
+  materialId: string;
+  materialName: string;
+  quantityRequired: number;
+  unit: string;
+  unitPrice: number;
+  totalCost: number;
+  calculationType: string;
+  description?: string;
+  price?: number;
+  isLabor?: boolean;
+  laborPricePerUnit?: number;
+  quantityPieces?: number;
+}
 
 export const SimpleCalculatorPage = () => {
   const setHeaderConfig = useSetHeaderConfig();
   const { materials: allMaterials } = useMaterialStore();
-  const [showResults, setShowResults] = useState(false);
   const [resultsData, setResultsData] = useState<{
     materialsData: Record<string, MaterialWithQuantity>;
     formData: CalculatorFormData;
+    calculatedMaterials: MaterialCost[];
+    totalCost: number;
   } | null>(null);
 
   useEffect(() => {
@@ -30,7 +46,6 @@ export const SimpleCalculatorPage = () => {
   }, [setHeaderConfig]);
 
   const handleSubmit = (formData: CalculatorFormData) => {
-    // Получаем только материалы из данных формы
     const materialsData = formData.materials as Record<string, MaterialWithQuantity> | undefined;
 
     if (!materialsData) {
@@ -38,8 +53,58 @@ export const SimpleCalculatorPage = () => {
       return;
     }
 
-    setResultsData({ materialsData, formData });
-    setShowResults(true);
+    // === Логика расчёта с добавлением работ (адаптировано из CalculatorPage) ===
+    const calculatedMaterials: MaterialCost[] = [];
+    let totalCost = 0;
+
+    Object.entries(materialsData).forEach(([role, data]) => {
+      const material = allMaterials.find(m => m.id.toString() === data.materialId);
+      if (!material || !material.latestPrice) return;
+
+      const quantity = data.quantity;
+      const materialPrice = material.latestPrice;
+      const laborPrice = data.laborPrice;
+
+      // 📦 Запись для материала
+      const materialTotal = quantity * materialPrice;
+      calculatedMaterials.push({
+        materialId: material.id.toString(),
+        materialName: material.name,
+        quantityRequired: quantity,
+        unit: material.unit || 'шт',
+        unitPrice: materialPrice,
+        totalCost: materialTotal,
+        calculationType: role,
+        description: material.description,
+        price: materialPrice,
+        quantityPieces: quantity,
+      });
+      totalCost += materialTotal;
+
+      // 🔧 Запись для работ (если указана цена) — адаптация логики из CalculatorPage
+      if (laborPrice && laborPrice > 0) {
+        const laborTotal = quantity * laborPrice;
+
+        calculatedMaterials.push({
+          materialId: `labor_${material.id}`,
+          materialName: `Работы: ${material.name}`,
+          quantityRequired: quantity,
+          unit: material.unit || 'шт',
+          unitPrice: laborPrice,
+          totalCost: laborTotal,
+          calculationType: `${role}_labor`,
+          description: `Стоимость работ по ${material.name.toLowerCase()}`,
+          price: laborPrice,
+          isLabor: true,
+          laborPricePerUnit: laborPrice,
+          quantityPieces: quantity,
+        });
+        totalCost += laborTotal;
+      }
+    });
+    // === Конец логики расчёта ===
+
+    setResultsData({ materialsData, formData, calculatedMaterials, totalCost });
     message.success('Расчет завершен!');
   };
 
@@ -47,24 +112,13 @@ export const SimpleCalculatorPage = () => {
     <>
       <SimpleCalculatorForm onSubmit={handleSubmit} loading={false} />
 
-      {showResults && resultsData && (
-        <Card
-          title="Результаты расчета"
-          style={{ marginTop: 24 }}
-          extra={
-            <button
-              onClick={() => setShowResults(false)}
-              style={{ border: 'none', background: 'none', cursor: 'pointer' }}
-            >
-              Скрыть
-            </button>
-          }
-        >
-          <CalculationResultTable
-            materialsData={resultsData.materialsData}
-            allMaterials={allMaterials}
-          />
-        </Card>
+      {resultsData && (
+        <CalculationResultTable
+          materialsData={resultsData.materialsData}
+          allMaterials={allMaterials}
+          calculatedMaterials={resultsData.calculatedMaterials}
+          totalCost={resultsData.totalCost}
+        />
       )}
     </>
   );

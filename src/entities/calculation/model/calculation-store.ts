@@ -80,6 +80,8 @@ export const useCalculationStore = create<CalculationState>((set, get) => ({
   createConfig: async (data: CreateConfigDto) => {
     set({ loading: true, error: null });
     try {
+      console.log('Sending config data:', data); // Для отладки
+
       const response = await apiClient.post('/calculations', data);
       const newConfig = response.data;
 
