@@ -1,11 +1,30 @@
 import { useMaterialStore } from '@/entities/material/model/material-store';
-import { Form, Select, InputNumber, Button, Card, Divider, Flex, Spin, Typography } from 'antd';
+import { useCalculationStore } from '@/entities/calculation/model/calculation-store';
+import type { CreateConfigDto, CalculationConfig } from '@/entities/calculation/model/types';
+import {
+  Form,
+  Select,
+  InputNumber,
+  Button,
+  Card,
+  Divider,
+  Flex,
+  Spin,
+  Typography,
+  message,
+  Modal,
+  List,
+  Space,
+  Input,
+} from 'antd';
+import { SaveOutlined, ShareAltOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
+import type { AnyType } from '@/entities/material/model/types';
 
 interface CalculatorFormData {
   houseTypeId: string;
-  length: number; // всегда есть
-  width: number; // всегда есть
+  length: number;
+  width: number;
   floors: number;
   insulationType: boolean;
   roofType: 'gable' | 'hip' | 'shed' | 'flat';
@@ -13,12 +32,10 @@ interface CalculatorFormData {
   foundationType: 'pile' | 'strip' | 'slab' | 'column';
   categoryHouse: string;
   roofHeight: number;
-
-  // 🔥 Метод расчёта бруса (только для брусового)
   logCalculationMethod?: 'perimeter' | 'linear';
-
-  // 🔥 Дополнительно: длина стен по пог.м (если выбран linear)
   linearWallLength?: number;
+  linearBottomBindingLength?: number;
+  [key: string]: AnyType;
 }
 
 interface CalculatorFormProps {
@@ -113,7 +130,25 @@ const MATERIAL_ROLES_BY_CATEGORY: Record<
 export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
   const [form] = Form.useForm();
   const [loadingCategories, setLoadingCategories] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [loadingConfigId, setLoadingConfigId] = useState<number | null>(null);
+
   const { materials, fetchMaterials } = useMaterialStore();
+
+  const {
+    configs,
+    loading: configsLoading,
+    fetchConfigs,
+    fetchConfigById,
+    createConfig,
+    deleteConfig,
+    shareConfig,
+    unshareConfig,
+    openShareModal,
+    closeShareModal,
+    shareModalVisible,
+    currentShareUrl,
+  } = useCalculationStore();
 
   const getMaterials = useCallback(async () => {
     setLoadingCategories(true);
@@ -126,7 +161,8 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
 
   useEffect(() => {
     getMaterials();
-  }, [getMaterials]);
+    fetchConfigs();
+  }, [getMaterials, fetchConfigs]);
 
   const handleFloorsChange = (value: number) => {
     let heights: number[] = [];
@@ -140,6 +176,114 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
     form.setFieldsValue({ ceilingHeights: heights });
   };
 
+  const handleLoadConfig = async (config: CalculationConfig) => {
+    try {
+      setLoadingConfigId(config.id);
+
+      // Загружаем полные данные конфигурации
+      const fullConfig = await fetchConfigById(config.id);
+
+      if (!fullConfig || !fullConfig.data) {
+        message.error('Ошибка: данные конфигурации не найдены');
+        return;
+      }
+
+      // Сохраняем данные конфигурации
+      const configData = fullConfig.data;
+
+      // Устанавливаем все значения формы
+      form.setFieldsValue(configData);
+
+      // Принудительно обновляем поля высот этажей
+      // Для этого нужно пересоздать поля Form.List
+      // Используем небольшой хак - временно меняем floors, чтобы вызвать перерисовку
+      if (configData.floors) {
+        // Запоминаем текущие высоты
+        const heights = configData.ceilingHeights || [];
+
+        // Устанавливаем floors
+        form.setFieldsValue({ floors: configData.floors });
+
+        // Обновляем высоты с небольшой задержкой
+        setTimeout(() => {
+          form.setFieldsValue({ ceilingHeights: heights });
+        }, 0);
+      }
+
+      setIsModalVisible(false);
+      message.success(`Загружена конфигурация: ${fullConfig.name}`);
+    } catch (error) {
+      console.error('Ошибка при загрузке конфигурации:', error);
+      message.error('Ошибка при загрузке конфигурации');
+    } finally {
+      setLoadingConfigId(null);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    try {
+      // Валидируем форму перед сохранением
+      const values = await form.validateFields();
+
+      let configName = '';
+      let configDescription = '';
+
+      Modal.confirm({
+        title: 'Сохранить конфигурацию',
+        content: (
+          <div>
+            <Input
+              placeholder="Название конфигурации"
+              style={{ width: '100%', marginBottom: 16 }}
+              onChange={e => {
+                configName = e.target.value;
+              }}
+            />
+            <Input.TextArea
+              placeholder="Описание (необязательно)"
+              rows={3}
+              onChange={e => {
+                configDescription = e.target.value;
+              }}
+            />
+          </div>
+        ),
+        onOk: async () => {
+          if (!configName || configName.trim() === '') {
+            message.error('Введите название конфигурации');
+            return;
+          }
+
+          const configData: CreateConfigDto = {
+            name: configName.trim(),
+            description: configDescription.trim() || undefined,
+            data: values,
+          };
+
+          const result = await createConfig(configData);
+          if (result) {
+            message.success('Конфигурация успешно сохранена');
+          }
+        },
+      });
+    } catch (error) {
+      console.error('Ошибка валидации формы:', error);
+      message.error('Пожалуйста, заполните все обязательные поля перед сохранением');
+    }
+  };
+
+  const handleShareConfig = async (configId: number) => {
+    const shareData = await shareConfig(configId);
+    if (shareData) {
+      openShareModal(shareData.shareUrl, configId);
+    }
+  };
+
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(currentShareUrl);
+    message.success('Ссылка скопирована');
+  };
+
   const onFinish = (values: CalculatorFormData) => {
     const categoryToId: Record<string, string> = {
       Брусовой: '5',
@@ -151,24 +295,42 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
       houseTypeId: categoryToId[values.categoryHouse] || '5',
     };
 
-    console.log(finalValues);
+    console.log('Отправка данных:', finalValues);
     onSubmit(finalValues);
   };
 
   return (
-    <Card title="Параметры дома">
-      <Spin spinning={loadingCategories}>
+    <Card
+      title="Параметры дома"
+      extra={
+        <Space>
+          <Button icon={<SaveOutlined />} onClick={handleSaveConfig} loading={configsLoading}>
+            Сохранить
+          </Button>
+          <Button
+            onClick={() => {
+              fetchConfigs();
+              setIsModalVisible(true);
+            }}
+          >
+            Загрузить {configs.length > 0 && `(${configs.length})`}
+          </Button>
+        </Space>
+      }
+    >
+      <Spin spinning={loadingCategories || loading}>
         <Form
           form={form}
           layout="vertical"
           onFinish={onFinish}
           initialValues={{
             roofType: 'gable',
-            roofPitch: 0.5,
+            roofHeight: 0.5,
             floors: 1,
             ceilingHeights: [2.8],
             logCalculationMethod: 'perimeter',
             foundationType: 'pile',
+            insulationType: true,
           }}
         >
           <Form.Item
@@ -179,7 +341,6 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
             <Select placeholder="Выберите тип дома" options={HOUSE_TYPE_CATEGORY_OPTIONS} />
           </Form.Item>
 
-          {/* 🔥 Тип фундамента */}
           <Form.Item
             name="foundationType"
             label="Тип фундамента"
@@ -188,7 +349,6 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
             <Select options={FOUNDATION_TYPE_OPTIONS} />
           </Form.Item>
 
-          {/* 🔥 Метод расчёта бруса (только для брусового) */}
           <Form.Item
             noStyle
             shouldUpdate={(prev, curr) => prev.categoryHouse !== curr.categoryHouse}
@@ -210,7 +370,6 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
             }}
           </Form.Item>
 
-          {/* 🔥 Дополнительное поле: длина стен по пог.м (только для брусового + linear) */}
           <Form.Item
             noStyle
             shouldUpdate={(prev, curr) =>
@@ -253,8 +412,8 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                 return (
                   <Form.Item
                     name="linearBottomBindingLength"
-                    label="Общая длина нижней обввязки (пог. м)"
-                    rules={[{ required: true, message: 'Введите длину стен' }]}
+                    label="Общая длина нижней обвязки (пог. м)"
+                    rules={[{ required: true, message: 'Введите длину обвязки' }]}
                   >
                     <InputNumber
                       style={{ width: '100%' }}
@@ -272,7 +431,6 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
 
           <Divider size="small" />
 
-          {/* 🔥 Длина и ширина — всегда обязательны */}
           <Flex gap={8} style={{ width: '100%' }}>
             <Form.Item
               name="length"
@@ -391,6 +549,7 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
               />
             </Form.Item>
           </Flex>
+
           <Flex gap={8} style={{ width: '100%' }}>
             <Form.Item
               name="insulationType"
@@ -402,31 +561,28 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
             </Form.Item>
           </Flex>
 
-          {/* 🔥 Материалы */}
           <Form.Item
-            shouldUpdate={
-              (prev, curr) =>
-                prev.categoryHouse !== curr.categoryHouse ||
-                prev.foundationType !== curr.foundationType ||
-                prev.floors !== curr.floors // ← добавили floors
+            shouldUpdate={(prev, curr) =>
+              prev.categoryHouse !== curr.categoryHouse ||
+              prev.foundationType !== curr.foundationType ||
+              prev.floors !== curr.floors
             }
             noStyle
           >
             {({ getFieldValue }) => {
               const categoryHouse = getFieldValue('categoryHouse');
               const foundationType = getFieldValue('foundationType');
-              const floors = getFieldValue('floors'); // ← получаем этажи
+              const floors = getFieldValue('floors');
 
               if (!categoryHouse || !foundationType) return null;
 
               let baseRoles = MATERIAL_ROLES_BY_CATEGORY[categoryHouse] || [];
 
-              // 🔥 Добавляем "Лаги для 2 этажа" только при 1.5 или 2 этажах
               if (categoryHouse === 'Брусовой' && (floors === 1.5 || floors === 2)) {
                 baseRoles = [
-                  ...baseRoles.slice(0, 3), // до 'ground_floor_beams'
+                  ...baseRoles.slice(0, 3),
                   { key: 'upper_floor_beams', label: 'Лаги для 2 этажа', category: 7 },
-                  ...baseRoles.slice(3), // остальные
+                  ...baseRoles.slice(3),
                 ];
               }
 
@@ -481,12 +637,106 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
           </Form.Item>
 
           <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>
+            <Button type="primary" htmlType="submit" loading={loading} block size="large">
               Рассчитать стоимость
             </Button>
           </Form.Item>
         </Form>
       </Spin>
+
+      {/* Модальное окно с сохраненными конфигурациями */}
+      <Modal
+        title="Сохраненные конфигурации"
+        open={isModalVisible}
+        onCancel={() => setIsModalVisible(false)}
+        footer={null}
+        width={700}
+      >
+        <Spin spinning={configsLoading}>
+          {configs.length === 0 ? (
+            <Typography.Text type="secondary">Нет сохраненных конфигураций</Typography.Text>
+          ) : (
+            <List
+              dataSource={configs}
+              renderItem={config => (
+                <List.Item
+                  actions={[
+                    <Button
+                      key="load"
+                      type="primary"
+                      size="small"
+                      loading={loadingConfigId === config.id}
+                      onClick={() => handleLoadConfig(config)}
+                    >
+                      Загрузить
+                    </Button>,
+                    config.is_public ? (
+                      <Button
+                        key="unshare"
+                        size="small"
+                        danger
+                        onClick={() => unshareConfig(config.id)}
+                      >
+                        Отменить публикацию
+                      </Button>
+                    ) : (
+                      <Button
+                        key="share"
+                        size="small"
+                        icon={<ShareAltOutlined />}
+                        onClick={() => handleShareConfig(config.id)}
+                      >
+                        Поделиться
+                      </Button>
+                    ),
+                    <Button
+                      key="delete"
+                      size="small"
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => deleteConfig(config.id)}
+                    />,
+                  ]}
+                >
+                  <List.Item.Meta
+                    title={config.name}
+                    description={
+                      <>
+                        {config.description && <div>{config.description}</div>}
+                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                          {new Date(config.updated_at).toLocaleString()}
+                          {config.is_public && ' • Опубликовано'}
+                        </Typography.Text>
+                      </>
+                    }
+                  />
+                </List.Item>
+              )}
+            />
+          )}
+        </Spin>
+      </Modal>
+
+      {/* Модальное окно для шаринга */}
+      <Modal
+        title="Поделиться конфигурацией"
+        open={shareModalVisible}
+        onCancel={closeShareModal}
+        footer={[
+          <Button key="copy" type="primary" onClick={copyShareLink}>
+            Копировать ссылку
+          </Button>,
+        ]}
+      >
+        <Typography.Paragraph>
+          Любой, у кого есть эта ссылка, может просмотреть конфигурацию:
+        </Typography.Paragraph>
+        <Input
+          value={currentShareUrl}
+          readOnly
+          addonAfter={<CopyOutlined onClick={copyShareLink} />}
+        />
+      </Modal>
     </Card>
   );
 };
