@@ -28,6 +28,11 @@ interface PriceState {
   createPrice: (price: Omit<Price, 'id'>) => Promise<void>;
   updatePrice: (id: string, price: Partial<Omit<Price, 'id'>>) => Promise<void>;
   deletePrice: (id: string) => Promise<void>;
+  fetchPricesForExport: (params?: {
+    materialId?: string;
+    date?: string | null;
+    latestOnly?: boolean;
+  }) => Promise<Price[]>;
 }
 
 export const usePriceStore = create<PriceState>((set, get) => ({
@@ -54,7 +59,7 @@ export const usePriceStore = create<PriceState>((set, get) => ({
       const params = new URLSearchParams({
         page: page.toString(),
         pageSize: currentPageSize.toString(),
-        latestOnly: filters.latestOnly.toString(), // ← добавляем параметр
+        latestOnly: filters.latestOnly.toString(),
       });
 
       if (filters.materialId) params.append('materialId', filters.materialId);
@@ -74,6 +79,20 @@ export const usePriceStore = create<PriceState>((set, get) => ({
       });
     } catch (error) {
       set({ error: getErrorMessage(error) || 'Ошибка загрузки прайсов', loading: false });
+    }
+  },
+
+  fetchPricesForExport: async params => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.materialId) queryParams.append('materialId', params.materialId);
+      if (params?.date) queryParams.append('date', params.date);
+      if (params?.latestOnly) queryParams.append('latestOnly', 'true');
+
+      const response = await apiClient.get('/prices/export', { params: queryParams });
+      return response.data.data as Price[];
+    } catch (error) {
+      throw new Error(getErrorMessage(error) || 'Ошибка загрузки данных для экспорта');
     }
   },
 
@@ -100,7 +119,6 @@ export const usePriceStore = create<PriceState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       await apiClient.post('/prices', price);
-      // Обновляем текущую страницу
       const { pagination } = get();
       get().fetchPrices(pagination.current, pagination.pageSize);
     } catch (error) {
@@ -119,7 +137,6 @@ export const usePriceStore = create<PriceState>((set, get) => ({
         errorMessage: 'Не удалось обновить прайс',
       });
 
-      // Обновляем текущую страницу
       const { pagination } = get();
       get().fetchPrices(pagination.current, pagination.pageSize);
     } catch (error) {

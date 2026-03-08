@@ -655,11 +655,7 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                     <Typography.Title level={5}>Материалы</Typography.Title>
                   </Form.Item>
                   {allRoles.map(role => (
-                    <Space.Compact
-                      block
-                      key={role.key}
-                      style={{ marginBottom: 16, display: 'flex', alignItems: 'flex-end' }}
-                    >
+                    <Flex key={role.key} gap={8} style={{ marginBottom: 16 }}>
                       <Form.Item
                         name={role.key}
                         label={role.label}
@@ -697,6 +693,7 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                       </Form.Item>
 
                       <Form.Item
+                        label={'Цена за работы'}
                         name={`${role.key}_price`}
                         style={{ flex: 1, marginBottom: 0 }}
                         tooltip="Цена за единицу материала"
@@ -710,7 +707,7 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                           addonAfter="руб."
                         />
                       </Form.Item>
-                    </Space.Compact>
+                    </Flex>
                   ))}
                 </>
               );
