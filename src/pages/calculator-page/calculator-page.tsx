@@ -104,7 +104,10 @@ export const CalculatorPage = () => {
       const baseArea = data.length * data.width;
       const totalArea = baseArea * data.floors;
       const perimeter = (data.length + data.width) * 2;
-      const totalWallHeight = data.ceilingHeights[0] + data.ceilingHeights[1];
+      const totalWallHeight =
+        data.ceilingHeights.length === 1
+          ? data.ceilingHeights[0]
+          : data.ceilingHeights[0] + data.ceilingHeights[1];
       const roofType = data.roofType;
       const insulationType = data.insulationType;
       const wallLengthForLogs =
