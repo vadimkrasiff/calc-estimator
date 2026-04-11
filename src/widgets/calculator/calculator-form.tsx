@@ -181,7 +181,7 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
   // ✅ Группирует роли по категориям: крыша, сруб, фундамент
   const groupRolesByCategory = (
     roles: (typeof MATERIAL_ROLES_BY_CATEGORY)[string],
-    categoryHouse: string,
+    _categoryHouse: string,
     isColdRoof: boolean,
     floors: number,
   ) => {
@@ -743,17 +743,19 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
             noStyle
           >
             {({ getFieldValue }) => {
-              const categoryHouse = getFieldValue('categoryHouse');
+              const _categoryHouse = getFieldValue('categoryHouse');
               const foundationType = getFieldValue('foundationType');
               const floors = getFieldValue('floors') || 1;
               const isColdRoof = getFieldValue('insulationType') === false;
 
-              if (!categoryHouse || !foundationType) return null;
+              const isLogHouse = _categoryHouse === 'Брусовой';
 
-              let baseRoles = MATERIAL_ROLES_BY_CATEGORY[categoryHouse] || [];
+              if (!_categoryHouse || !foundationType) return null;
+
+              let baseRoles = MATERIAL_ROLES_BY_CATEGORY[_categoryHouse] || [];
 
               // Добавляем лаги для 2 этажа если нужно
-              if (categoryHouse === 'Брусовой' && (floors === 1.5 || floors === 2)) {
+              if (isLogHouse && (floors === 1.5 || floors === 2)) {
                 const upperFloorIndex = baseRoles.findIndex(r => r.key === 'roofing_material');
                 if (upperFloorIndex !== -1) {
                   baseRoles = [
@@ -767,7 +769,7 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
               // ✅ Группируем роли по категориям
               const { roofRoles, loghouseRoles, foundationRoles } = groupRolesByCategory(
                 baseRoles,
-                categoryHouse,
+                _categoryHouse,
                 isColdRoof,
                 floors,
               );
@@ -789,7 +791,7 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                     : role.tooltip
                   : role.tooltip;
 
-                const isWallsLogs = role.key === 'walls_logs' && categoryHouse === 'Брусовой';
+                const isWallsLogs = role.key === 'walls_logs' && isLogHouse;
 
                 return (
                   <Fragment key={role.key}>
