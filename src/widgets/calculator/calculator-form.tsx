@@ -16,10 +16,12 @@ import {
   List,
   Space,
   Input,
+  Checkbox,
+  Tag,
 } from 'antd';
 import { SaveOutlined, ShareAltOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
-import { useCallback, useEffect, useState } from 'react';
-import type { AnyType } from '@/entities/material/model/types';
+import { Fragment, useCallback, useEffect, useState } from 'react';
+import type { AnyType, Material } from '@/entities/material/model/types';
 
 interface CalculatorFormData {
   houseTypeId: string;
@@ -35,6 +37,12 @@ interface CalculatorFormData {
   logCalculationMethod?: 'perimeter' | 'linear';
   linearWallLength?: number;
   linearBottomBindingLength?: number;
+  // ✅ Новые поля для бруса (камерная сушка и нарезка чаш)
+  walls_logs_kiln_drying?: boolean;
+  walls_logs_kiln_drying_price?: number;
+  walls_logs_cup_cutting?: boolean;
+  walls_logs_cup_cutting_price?: number;
+
   [key: string]: AnyType;
 }
 
@@ -74,7 +82,10 @@ const FOUNDATION_TYPE_OPTIONS = [
   { label: 'Столбчатый', value: 'column' },
 ];
 
-const FOUNDATION_ROLE_MAP: Record<string, { key: string; label: string; category: number }> = {
+const FOUNDATION_ROLE_MAP: Record<
+  string,
+  { key: string; label: string; category: number; tooltip?: string }
+> = {
   pile: { key: 'foundation_piles', label: 'Железобетонные сваи', category: 4 },
   strip: { key: 'foundation_strip', label: 'Ленточный фундамент', category: 4 },
   slab: { key: 'foundation_slab', label: 'Плитный фундамент', category: 4 },
@@ -93,19 +104,53 @@ const LOG_CALCULATION_METHODS = [
 
 const MATERIAL_ROLES_BY_CATEGORY: Record<
   string,
-  { key: string; label: string; category?: number }[]
+  { key: string; label: string; category?: number; tooltip?: string; conditional?: boolean }[]
 > = {
   Брусовой: [
     { key: 'walls_logs', label: 'Брус для сруба', category: 7 },
     { key: 'bottom_binding', label: 'Нижняя обвязка', category: 7 },
-    { key: 'floors_beams', label: 'Лаги', category: 7 },
+    { key: 'floors_beams', label: 'Лаги пола 1 этажа', category: 7 },
     { key: 'roofs_trusses', label: 'Стропила', category: 7 },
-    { key: 'roofs_sheathing', label: 'Обрешётка', category: 7 },
-    { key: 'insulation', label: 'Утеплитель', category: 2 },
-    { key: 'vapor_barrier', label: 'Пароизоляционная плёнка', category: 2 },
+
+    // ✅ Утепление крыши (всегда показывается, но контент зависит от insulationType)
+    {
+      key: 'roof_insulation',
+      label: 'Утепление крыши',
+      category: 2,
+      tooltip:
+        'Холодная: пароизоляция в 1 слой. Тёплая: полный пирог (обрешётка → пароизоляция → утеплитель → пароизоляция → обрешётка)',
+    },
+
+    // ✅ Утепление потолка (только если крыша холодная)
+    {
+      key: 'ceiling_insulation',
+      label: 'Утепление потолка',
+      category: 2,
+      conditional: true,
+      tooltip: 'Слой утеплителя потолка при холодной кровле',
+    },
+
+    // ✅ Тип лаг для потолка (только если крыша холодная)
+    {
+      key: 'ceiling_lags',
+      label: 'Лаги потолка',
+      category: 7,
+      conditional: true,
+      tooltip: 'Балки перекрытия потолка при холодной кровле',
+    },
+
     { key: 'roofing_material', label: 'Кровельные материалы', category: 3 },
-    { key: 'interventr_insulation', label: 'Межвенцовый утеплитель', category: 2 },
+    { key: 'interventr_insulation', label: 'Межвенцовый утеплитель (Джут)', category: 2 },
     { key: 'roof_battens', label: 'Контробрешётка', category: 7 },
+
+    // ✅ Утепление перекрытий по этажам
+    { key: 'floor1_insulation', label: 'Утепление перекрытия 1 этажа', category: 2 },
+    {
+      key: 'floor2_insulation',
+      label: 'Утепление перекрытия 2 этажа',
+      category: 2,
+      conditional: true,
+    },
   ],
   Каркасный: [
     { key: 'walls_frame_structure', label: 'Каркас (стойки, балки)' },
@@ -132,6 +177,55 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [loadingConfigId, setLoadingConfigId] = useState<number | null>(null);
+
+  // ✅ Группирует роли по категориям: крыша, сруб, фундамент
+  const groupRolesByCategory = (
+    roles: (typeof MATERIAL_ROLES_BY_CATEGORY)[string],
+    categoryHouse: string,
+    isColdRoof: boolean,
+    floors: number,
+  ) => {
+    const roofRoles: (typeof MATERIAL_ROLES_BY_CATEGORY)[string] = [];
+    const loghouseRoles: (typeof MATERIAL_ROLES_BY_CATEGORY)[string] = [];
+    const foundationRoles: (typeof MATERIAL_ROLES_BY_CATEGORY)[string] = [];
+
+    roles.forEach(role => {
+      // Фильтрация условных полей
+      if (role.conditional) {
+        if ((role.key === 'ceiling_insulation' || role.key === 'ceiling_lags') && !isColdRoof)
+          return;
+        if (role.key === 'floor2_insulation' && floors !== 2) return;
+      }
+
+      // Распределение по группам
+      const roofKeys = [
+        'roofs_trusses',
+        'roofs_sheathing',
+        'roof_insulation',
+        'roofing_material',
+        'roof_battens',
+        'ceiling_insulation',
+        'ceiling_lags',
+      ];
+      const foundationKeys = [
+        'foundation_piles',
+        'foundation_strip',
+        'foundation_slab',
+        'foundation_columns',
+        'addit_foundation_piles',
+      ];
+
+      if (roofKeys.includes(role.key)) {
+        roofRoles.push(role);
+      } else if (foundationKeys.includes(role.key)) {
+        foundationRoles.push(role);
+      } else {
+        loghouseRoles.push(role);
+      }
+    });
+
+    return { roofRoles, loghouseRoles, foundationRoles };
+  };
 
   const { materials, fetchMaterials } = useMaterialStore();
 
@@ -347,13 +441,28 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
       Каркасный: '6',
       Газобетон: '7',
     };
+
     const finalValues = {
       ...values,
       houseTypeId: categoryToId[values.categoryHouse] || '5',
     };
 
+    // ✅ Удаляем цены, если услуги не активны
+    if (!finalValues.walls_logs_kiln_drying) {
+      delete (finalValues as AnyType).walls_logs_kiln_drying_price;
+    }
+    if (!finalValues.walls_logs_cup_cutting) {
+      delete (finalValues as AnyType).walls_logs_cup_cutting_price;
+    }
+
     console.log('Отправка данных:', finalValues);
     onSubmit(finalValues);
+  };
+
+  const getMaterialUnit = (materials: Material[], materialId?: string): string => {
+    if (!materialId) return '';
+    const material = materials.find(m => m.id.toString() === materialId);
+    return material?.unit || '';
   };
 
   return (
@@ -388,6 +497,12 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
             logCalculationMethod: 'perimeter',
             foundationType: 'pile',
             insulationType: true,
+
+            // ✅ Новые поля
+            walls_logs_kiln_drying: false,
+            walls_logs_kiln_drying_price: undefined,
+            walls_logs_cup_cutting: false,
+            walls_logs_cup_cutting_price: undefined,
           }}
         >
           <Form.Item
@@ -622,74 +737,137 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
             shouldUpdate={(prev, curr) =>
               prev.categoryHouse !== curr.categoryHouse ||
               prev.foundationType !== curr.foundationType ||
-              prev.floors !== curr.floors
+              prev.floors !== curr.floors ||
+              prev.insulationType !== curr.insulationType
             }
             noStyle
           >
             {({ getFieldValue }) => {
               const categoryHouse = getFieldValue('categoryHouse');
               const foundationType = getFieldValue('foundationType');
-              const floors = getFieldValue('floors');
+              const floors = getFieldValue('floors') || 1;
+              const isColdRoof = getFieldValue('insulationType') === false;
 
               if (!categoryHouse || !foundationType) return null;
 
               let baseRoles = MATERIAL_ROLES_BY_CATEGORY[categoryHouse] || [];
 
+              // Добавляем лаги для 2 этажа если нужно
               if (categoryHouse === 'Брусовой' && (floors === 1.5 || floors === 2)) {
-                baseRoles = [
-                  ...baseRoles.slice(0, 3),
-                  { key: 'upper_floor_beams', label: 'Лаги для 2 этажа', category: 7 },
-                  ...baseRoles.slice(3),
-                ];
+                const upperFloorIndex = baseRoles.findIndex(r => r.key === 'roofing_material');
+                if (upperFloorIndex !== -1) {
+                  baseRoles = [
+                    ...baseRoles.slice(0, upperFloorIndex),
+                    { key: 'upper_floor_beams', label: 'Лаги для 2 этажа', category: 7 },
+                    ...baseRoles.slice(upperFloorIndex),
+                  ];
+                }
               }
 
+              // ✅ Группируем роли по категориям
+              const { roofRoles, loghouseRoles, foundationRoles } = groupRolesByCategory(
+                baseRoles,
+                categoryHouse,
+                isColdRoof,
+                floors,
+              );
+
+              // Добавляем фундаментные роли
               const foundationRole = FOUNDATION_ROLE_MAP[foundationType];
               const additFoundationRole = ADDIT_FOUNDATION_ROLE_MAP[foundationType];
-              let allRoles = foundationRole ? [...baseRoles, foundationRole] : baseRoles;
-              allRoles = additFoundationRole ? [...allRoles, additFoundationRole] : allRoles;
+              if (foundationRole) foundationRoles.push(foundationRole);
+              if (additFoundationRole) foundationRoles.push(additFoundationRole);
 
-              return (
-                <>
-                  <Divider size="small" />
-                  <Form.Item>
-                    <Typography.Title level={5}>Материалы</Typography.Title>
-                  </Form.Item>
-                  {allRoles.map(role => (
-                    <Flex key={role.key} gap={8} style={{ marginBottom: 16 }}>
+              // Компонент для рендеринга одного поля материала
+              const renderMaterialField = (
+                role: (typeof MATERIAL_ROLES_BY_CATEGORY)[string][number],
+              ) => {
+                const isRoofInsulation = role.key === 'roof_insulation';
+                const roofInsulationTooltip = isRoofInsulation
+                  ? isColdRoof
+                    ? 'Холодная кровля: применяется пароизоляционная плёнка в 1 слой'
+                    : role.tooltip
+                  : role.tooltip;
+
+                const isWallsLogs = role.key === 'walls_logs' && categoryHouse === 'Брусовой';
+
+                return (
+                  <Fragment key={role.key}>
+                    {/* Основное поле материала */}
+                    <Flex key={`${role.key}-main`} gap={8} style={{ marginBottom: 16 }}>
                       <Form.Item
-                        name={role.key}
-                        label={role.label}
                         style={{ flex: 2, marginBottom: 0 }}
-                        rules={[{ required: true, message: 'Обязательное поле' }]}
+                        shouldUpdate={(prev, curr) => prev[role.key] !== curr[role.key]}
                       >
-                        <Select
-                          placeholder={`Выберите материал`}
-                          showSearch
-                          optionFilterProp="children"
-                          filterOption={(input, option) =>
-                            `${option?.label || ''}`.toLowerCase().includes(input.toLowerCase())
-                          }
-                          onChange={() => {
-                            // Сбрасываем цену при смене материала
-                            form.setFieldValue([`${role.key}_price`], undefined);
-                          }}
-                        >
-                          {materials
-                            .filter(material =>
-                              role?.category ? material.categoryId === role?.category : true,
-                            )
-                            .map(material => (
-                              <Select.Option
-                                key={material.id}
-                                value={material.id.toString()}
-                                label={`${material.name}  ${material.unit === 'м³' && `(${material.width}×${material.height} мм)`}`}
+                        {({ getFieldValue }) => {
+                          const selectedValue = getFieldValue(role.key);
+                          const unit = getMaterialUnit(materials, selectedValue);
+
+                          return (
+                            <Space.Compact block style={{ width: '100%', alignItems: 'flex-end' }}>
+                              <Form.Item
+                                name={role.key}
+                                label={role.label}
+                                style={{ flex: 2, marginBottom: 0 }}
+                                tooltip={roofInsulationTooltip}
                               >
-                                {material.name}{' '}
-                                {material.unit === 'м³' &&
-                                  `(${material.width}×${material.height} мм)`}
-                              </Select.Option>
-                            ))}
-                        </Select>
+                                <Select
+                                  style={{ flex: 1 }}
+                                  placeholder={`Выберите материал`}
+                                  showSearch
+                                  allowClear
+                                  optionFilterProp="children"
+                                  filterOption={(input, option) =>
+                                    `${option?.label || ''}`
+                                      .toLowerCase()
+                                      .includes(input.toLowerCase())
+                                  }
+                                  onChange={() => {
+                                    form.setFieldValue([`${role.key}_price`], undefined);
+                                  }}
+                                  optionLabelProp="label"
+                                >
+                                  {materials
+                                    .filter(material =>
+                                      role?.category
+                                        ? material.categoryId === role?.category
+                                        : true,
+                                    )
+                                    .map(material => (
+                                      <Select.Option
+                                        key={material.id}
+                                        value={material.id.toString()}
+                                        label={material.name}
+                                      >
+                                        {material.name}
+                                      </Select.Option>
+                                    ))}
+                                </Select>
+                              </Form.Item>
+                              {unit ? (
+                                <div
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    padding: '0 12px',
+                                    minWidth: 50,
+                                    border: '1px solid #d9d9d9',
+                                    borderLeft: 'none',
+                                    borderRadius: '0 6px 6px 0',
+                                    backgroundColor: '#fafafa',
+                                    color: '#888',
+                                    fontSize: 14,
+                                    height: 32,
+                                    boxSizing: 'border-box',
+                                  }}
+                                >
+                                  {unit}
+                                </div>
+                              ) : null}
+                            </Space.Compact>
+                          );
+                        }}
                       </Form.Item>
 
                       <Form.Item
@@ -708,7 +886,156 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
                         />
                       </Form.Item>
                     </Flex>
-                  ))}
+
+                    {/* Доп. поля для "Брус для сруба" */}
+                    {isWallsLogs && (
+                      <Flex
+                        vertical
+                        gap={16}
+                        style={{
+                          marginBottom: 20,
+                          paddingLeft: 28,
+                          borderLeft: '3px solid #1890ff',
+                          marginLeft: 4,
+                          backgroundColor: '#fafafa',
+                          padding: '12px 16px',
+                          borderRadius: '0 8px 8px 0',
+                        }}
+                      >
+                        <Typography.Text strong style={{ fontSize: 14, color: '#1890ff' }}>
+                          Дополнительные услуги для бруса:
+                        </Typography.Text>
+
+                        {/* 🔥 Камерная сушка */}
+                        <Flex gap={16} align="center" wrap>
+                          <Form.Item
+                            name="walls_logs_kiln_drying"
+                            valuePropName="checked"
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Checkbox>Камерная сушка</Checkbox>
+                          </Form.Item>
+                          <Form.Item
+                            noStyle
+                            shouldUpdate={(prev, curr) =>
+                              prev.walls_logs_kiln_drying !== curr.walls_logs_kiln_drying
+                            }
+                          >
+                            {({ getFieldValue }) =>
+                              getFieldValue('walls_logs_kiln_drying') && (
+                                <Form.Item
+                                  name="walls_logs_kiln_drying_price"
+                                  style={{ marginBottom: 0 }}
+                                  tooltip="Цена сушки за 1 м³ бруса"
+                                >
+                                  <InputNumber
+                                    placeholder="0"
+                                    min={0}
+                                    step={10}
+                                    precision={2}
+                                    style={{ width: 160 }}
+                                    addonAfter="руб./м³"
+                                  />
+                                </Form.Item>
+                              )
+                            }
+                          </Form.Item>
+                        </Flex>
+
+                        {/* ✂️ Нарезка чаш */}
+                        <Flex gap={16} align="center" wrap>
+                          <Form.Item
+                            name="walls_logs_cup_cutting"
+                            valuePropName="checked"
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Checkbox>Нарезка чаш</Checkbox>
+                          </Form.Item>
+                          <Form.Item
+                            noStyle
+                            shouldUpdate={(prev, curr) =>
+                              prev.walls_logs_cup_cutting !== curr.walls_logs_cup_cutting
+                            }
+                          >
+                            {({ getFieldValue }) =>
+                              getFieldValue('walls_logs_cup_cutting') && (
+                                <Form.Item
+                                  name="walls_logs_cup_cutting_price"
+                                  style={{ marginBottom: 0 }}
+                                  tooltip="Цена нарезки одной чаши"
+                                >
+                                  <InputNumber
+                                    placeholder="0"
+                                    min={0}
+                                    step={10}
+                                    precision={2}
+                                    style={{ width: 160 }}
+                                    addonAfter="руб./шт"
+                                  />
+                                </Form.Item>
+                              )
+                            }
+                          </Form.Item>
+                        </Flex>
+                      </Flex>
+                    )}
+                  </Fragment>
+                );
+              };
+
+              return (
+                <>
+                  <Divider size="small" />
+                  <Form.Item>
+                    <Typography.Title level={5}>Материалы</Typography.Title>
+                  </Form.Item>
+
+                  {/* 🏠 ГРУППА 1: КРЫША */}
+                  {roofRoles.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
+                        <Tag color="orange" style={{ fontSize: 12 }}>
+                          🏠 Крыша
+                        </Tag>
+                        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                          Стропила, обрешётка, кровля, утепление
+                        </Typography.Text>
+                      </Flex>
+                      <div style={{ paddingLeft: 8 }}>{roofRoles.map(renderMaterialField)}</div>
+                    </div>
+                  )}
+
+                  {/* 🪵 ГРУППА 2: СРУБ */}
+                  {loghouseRoles.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
+                        <Tag color="blue" style={{ fontSize: 12 }}>
+                          🪵 Сруб
+                        </Tag>
+                        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                          Брус, лаги, перекрытия, утепление полов/потолков
+                        </Typography.Text>
+                      </Flex>
+                      <div style={{ paddingLeft: 8 }}>{loghouseRoles.map(renderMaterialField)}</div>
+                    </div>
+                  )}
+
+                  {/* 🏗️ ГРУППА 3: ФУНДАМЕНТ */}
+                  {foundationRoles.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
+                        <Tag color="green" style={{ fontSize: 12 }}>
+                          🏗️ Фундамент
+                        </Tag>
+                        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                          Сваи, лента, плита или столбы
+                        </Typography.Text>
+                      </Flex>
+                      <div style={{ paddingLeft: 8 }}>
+                        {foundationRoles.map(renderMaterialField)}
+                      </div>
+                    </div>
+                  )}
                 </>
               );
             }}

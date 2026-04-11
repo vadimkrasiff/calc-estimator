@@ -82,7 +82,7 @@ const MATERIAL_ROLES_BY_CATEGORY: Record<
     { key: 'insulation', label: 'Утеплитель', category: 2 },
     { key: 'vapor_barrier', label: 'Пароизоляционная плёнка', category: 2 },
     { key: 'roofing_material', label: 'Кровельные материалы', category: 3 },
-    { key: 'interventr_insulation', label: 'Межвенцовый утеплитель', category: 2 },
+    { key: 'interventr_insulation', label: 'Межвенцовый утеплитель (Джут)', category: 2 },
     { key: 'roof_battens', label: 'Контробрешётка', category: 7 },
   ],
   Каркасный: [
@@ -571,11 +571,12 @@ export const SimpleCalculatorForm = ({ onSubmit, loading }: CalculatorFormProps)
                         name={role.key}
                         label={role.label}
                         style={{ flex: 2, marginBottom: 0 }}
-                        rules={[{ required: true, message: 'Выберите материал' }]}
+                        // rules={[{ required: true, message: 'Выберите материал' }]}
                       >
                         <Select
                           placeholder="Выберите материал"
                           showSearch
+                          allowClear
                           optionFilterProp="children"
                           filterOption={(input, option) =>
                             `${option?.label || ''}`.toLowerCase().includes(input.toLowerCase())
@@ -618,10 +619,10 @@ export const SimpleCalculatorForm = ({ onSubmit, loading }: CalculatorFormProps)
                               label="Количество"
                               className="flex-1"
                               rules={[
-                                {
-                                  required: true,
-                                  message: 'Введите количество',
-                                },
+                                // {
+                                //   required: true,
+                                //   message: 'Введите количество',
+                                // },
                                 {
                                   type: 'number',
                                   min: 0,

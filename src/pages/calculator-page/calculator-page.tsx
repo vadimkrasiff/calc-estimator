@@ -147,8 +147,14 @@ export const CalculatorPage = () => {
         'bottom_binding',
         'ground_floor_beams',
         'upper_floor_beams',
-        'insulation',
-        'vapor_barrier',
+
+        // ✅ Новые поля утепления
+        'roof_insulation', // Утепление крыши (зависит от insulationType)
+        'ceiling_insulation', // Утепление потолка (только холодная кровля)
+        'ceiling_lags', // Лаги для потолка (только холодная кровля)
+        'floor1_insulation', // Утепление перекрытия 1 этажа
+        'floor2_insulation', // Утепление перекрытия 2 этажа (только если 2 этажа)
+
         'roofing_material',
         'interventr_insulation',
         'roof_battens',
@@ -263,11 +269,11 @@ export const CalculatorPage = () => {
             const logLength = 6.0;
 
             // Размеры до профилировки (для объёма)
-            const rawWidth = (htm.width || 150) / 1000; // ширина до профилировки
-            const rawHeight = (htm.height || 150) / 1000; // высота до профилировки
+            const rawWidth = (htm.width || 150) / 1000;
+            const rawHeight = (htm.height || 150) / 1000;
 
-            // Размеры после профилировки (для количества)
-            const profiledHeight = (htm.nominalHeight || 140) / 1000; // высота после профилировки
+            // Размеры после профилировки (для количества рядов)
+            const profiledHeight = (htm.nominalHeight || 140) / 1000;
 
             // Объём одного бруса (из таблицы)
             const logVolume = (() => {
@@ -288,80 +294,115 @@ export const CalculatorPage = () => {
                 '300x300': 0.54,
               };
               const key = `${Math.round(rawHeight * 1000)}x${Math.round(rawWidth * 1000)}`;
-              return table[key] || 0.135; // по умолчанию 150x150
+              return table[key] || 0.135;
             })();
 
             // === Стены ===
-            // Длина стен (с учётом метода расчёта)
             const wallLength = wallLengthForLogs;
-
-            // Количество брусьев в одном ряду
             const logsPerRow = Math.ceil(wallLength / logLength);
-
-            // Количество рядов
             const totalRows = Math.ceil(totalWallHeight / profiledHeight);
-
-            // Общее количество брусьев для стен
             const totalLogsForWalls = logsPerRow * totalRows;
 
-            // === Мансарда (фронтон) ===
+            // === Фронтоны ===
             let totalLogsForGables = 0;
-
             if (roofType === 'gable') {
-              const shortSide = Math.min(data.length, data.width); // ширина дома
-
-              // Высота фронтона
+              const shortSide = Math.min(data.length, data.width);
               const gableHeight = data.roofHeight;
-
-              // Площадь фронтона
               const gableArea = (shortSide * gableHeight) / 2;
-
-              // Представляем площадь как прямоугольник: shortSide × ?
               const virtualHeight = gableArea / shortSide;
-
-              // Количество рядов в фронтоне
               const gableRows = Math.ceil(virtualHeight / profiledHeight);
-
-              // Количество брусьев в одном ряду фронтона
               const gableLogsPerRow = Math.ceil(shortSide / logLength);
-
-              // Общее количество брусьев для 2 фронтонов
               totalLogsForGables = gableLogsPerRow * gableRows * 2;
             }
 
             // === Коньковые прогоны ===
             let totalLogsForRidges = 0;
-
             if (roofType === 'gable') {
-              const longSide = Math.max(data.length, data.width); // длина дома
-
-              // Центральные прогоны
+              const longSide = Math.max(data.length, data.width);
               const centralRidgeLogs = [
-                (longSide + 1.4) / logLength, // 2 выступа по 0.7 м
-                (longSide + 0.8) / logLength, // 2 выступа по 0.4 м
-                longSide / logLength, // без выступов
+                (longSide + 1.4) / logLength,
+                (longSide + 0.8) / logLength,
+                longSide / logLength,
               ];
               const totalCentralLogs = centralRidgeLogs.reduce(
                 (sum, len) => sum + Math.ceil(len),
                 0,
               );
-
-              // Боковые прогоны (2 штуки)
-              const sideRidgeLogs = [
-                (longSide + 1.4) / logLength, // 2 выступа по 0.7 м
-                (longSide + 0.8) / logLength, // 2 выступа по 0.4 м
-              ];
-              const totalSideLogs = sideRidgeLogs.reduce((sum, len) => sum + Math.ceil(len), 0) * 2; // ×2 фронтона
-
-              // Общее количество брусьев для коньков
+              const sideRidgeLogs = [(longSide + 1.4) / logLength, (longSide + 0.8) / logLength];
+              const totalSideLogs = sideRidgeLogs.reduce((sum, len) => sum + Math.ceil(len), 0) * 2;
               totalLogsForRidges = totalCentralLogs + totalSideLogs;
             }
 
-            // === Общий объём ===
+            // === Итоговое количество бруса ===
             const totalLogs = totalLogsForWalls + totalLogsForGables + totalLogsForRidges;
             quantityPieces = totalLogs;
-            // Применяем коэффициенты
             quantityRequired = totalLogs * logVolume * jointWasteFactor;
+
+            // ✅ === ДОПОЛНИТЕЛЬНЫЕ УСЛУГИ ДЛЯ БРУСА ===
+
+            // 🔥 Камерная сушка
+            const kilnDryingEnabled = data.walls_logs_kiln_drying === true;
+            const kilnDryingPrice = data.walls_logs_kiln_drying_price as number | undefined;
+
+            if (kilnDryingEnabled && kilnDryingPrice && kilnDryingPrice > 0) {
+              // Стоимость считается за объём бруса (м³)
+              const kilnDryingCost = quantityRequired * kilnDryingPrice;
+              const kilnDryingCostWithWaste = quantityRequired * wasteFactor * kilnDryingPrice;
+
+              materials.push({
+                materialId: `${material.id}_kiln_drying`,
+                materialName: 'Камерная сушка бруса',
+                quantityRequired: quantityRequired,
+                quantityRequiredWidthWasteFactor: quantityRequired * wasteFactor,
+                unit: 'м³',
+                unitPrice: kilnDryingPrice,
+                totalCost: kilnDryingCost,
+                totalCostWidthWasteFactor: kilnDryingCostWithWaste,
+                calculationType: 'walls_logs_kiln_drying',
+                description: 'Сушка бруса в камере до влажности 12-18%',
+                price: kilnDryingPrice,
+              });
+
+              totalCost += kilnDryingCost;
+              totalCostWidthWasteFactor += kilnDryingCostWithWaste;
+            }
+
+            // ✂️ Нарезка чаш
+            const cupCuttingEnabled = data.walls_logs_cup_cutting === true;
+            const cupCuttingPrice = data.walls_logs_cup_cutting_price as number | undefined;
+
+            if (cupCuttingEnabled && cupCuttingPrice && cupCuttingPrice > 0) {
+              // Расчёт количества чаш: 4 угла × количество рядов бруса
+              // Для фронтонов и коньков чашы обычно не режутся, считаем только основные стены
+              const wallRows = Math.ceil(totalWallHeight / profiledHeight);
+              const corners = 4; // стандартный прямоугольный дом
+              let cupsCount = corners * wallRows;
+
+              // Если есть фронтоны из бруса — добавляем чашы для них (опционально)
+              if (roofType === 'gable' && totalLogsForGables > 0) {
+                cupsCount += 2 * Math.ceil(totalLogsForGables / 2); // 2 фронтона
+              }
+
+              const cupCuttingCost = cupsCount * cupCuttingPrice;
+
+              materials.push({
+                materialId: `${material.id}_cup_cutting`,
+                materialName: 'Нарезка чаш',
+                quantityRequired: cupsCount,
+                quantityRequiredWidthWasteFactor: cupsCount, // для чаш отходы не применяются
+                unit: 'шт',
+                unitPrice: cupCuttingPrice,
+                totalCost: cupCuttingCost,
+                totalCostWidthWasteFactor: cupCuttingCost,
+                calculationType: 'walls_logs_cup_cutting',
+                description: 'Зарезка чаш для угловых соединений бруса',
+                price: cupCuttingPrice,
+                quantityPieces: cupsCount,
+              });
+
+              totalCost += cupCuttingCost;
+              totalCostWidthWasteFactor += cupCuttingCost;
+            }
 
             break;
           }
@@ -411,7 +452,119 @@ export const CalculatorPage = () => {
             quantityRequired = volume;
             break;
           }
+          // 🏠 УТЕПЛЕНИЕ КРЫШИ (зависит от типа кровли)
+          case 'roof_insulation': {
+            const shortSide = Math.min(data.length, data.width);
+            const longSide = Math.max(data.length, data.width);
+            const roofHeight = data.roofHeight;
 
+            // Длина ската с выступами
+            const horizontalOverhang = 0.527;
+            const totalHalfBase = shortSide / 2 + horizontalOverhang;
+            const rafterLength = Math.sqrt(Math.pow(roofHeight, 2) + Math.pow(totalHalfBase, 2));
+
+            // Площадь крыши (2 ската с выступами)
+            const roofArea = (longSide + 1.4) * rafterLength * 2;
+
+            if (insulationType === false) {
+              // ❄️ Холодная кровля: только пароизоляция в 1 слой
+              quantityRequired = roofArea;
+            } else {
+              // 🔥 Тёплая кровля: полный пирог (считаем как площадь × 2 слоя пароизоляции + утеплитель)
+              // Для упрощения считаем общую площадь материалов
+              quantityRequired = roofArea * 2.2; // +20% на нахлёст и второй слой
+            }
+            break;
+          }
+
+          // 🏠 УТЕПЛЕНИЕ ПОТОЛКА (только холодная кровля)
+          case 'ceiling_insulation': {
+            if (insulationType === true) {
+              // Для тёплой кровли это поле не используется
+              continue;
+            }
+
+            // Площадь потолка = площадь основания дома
+            const ceilingArea = data.length * data.width;
+
+            // Добавляем 10% на подрезку и нахлёст
+            quantityRequired = ceilingArea * 1.1;
+            break;
+          }
+
+          // 🪵 ЛАГИ ДЛЯ ПОТОЛКА (только холодная кровля)
+          case 'ceiling_lags': {
+            if (insulationType === true) {
+              // Для тёплой кровли это поле не используется
+              continue;
+            }
+
+            const span = shortSide; // пролёт (короткая сторона)
+            const wallLength = longSide; // длина стены (длинная сторона)
+            const spacing = 0.6; // шаг между лагами (м)
+            const logLength = 6.0; // длина бруса (м)
+
+            // Количество лаг
+            const count = Math.floor((wallLength - spacing) / spacing) + 1;
+
+            // Количество брусьев на одну лагу
+            const logsPerBeam = Math.ceil(span / logLength);
+
+            // Общее количество брусьев
+            const totalLogs = count * logsPerBeam;
+
+            // Объём одного бруса (из таблицы)
+            const logVolume = (() => {
+              const table: Record<string, number> = {
+                '100x100': 0.06,
+                '100x150': 0.09,
+                '150x150': 0.135,
+                '100x180': 0.108,
+                '150x180': 0.162,
+                '180x180': 0.194,
+                '100x200': 0.12,
+                '150x200': 0.18,
+                '180x200': 0.216,
+                '200x200': 0.24,
+                '250x200': 0.3,
+                '250x250': 0.375,
+                '250x300': 0.45,
+                '300x300': 0.54,
+              };
+              const key = `${htm.height || 150}x${htm.width || 150}`;
+              return table[key] || 0.135;
+            })();
+
+            const volume = totalLogs * logVolume;
+            quantityPieces = totalLogs;
+            quantityRequired = volume;
+            break;
+          }
+
+          // 🏠 УТЕПЛЕНИЕ ПЕРЕКРЫТИЯ 1 ЭТАЖА
+          case 'floor1_insulation': {
+            // Площадь перекрытия = площадь основания
+            const floorArea = data.length * data.width;
+
+            // Добавляем 10% на подрезку
+            quantityRequired = floorArea * 1.1;
+            break;
+          }
+
+          // 🏠 УТЕПЛЕНИЕ ПЕРЕКРЫТИЯ 2 ЭТАЖА (только если 2 этажа)
+          case 'floor2_insulation': {
+            if (data.floors < 2) {
+              // Если нет 2 этажа, пропускаем
+              continue;
+            }
+
+            // Площадь перекрытия = площадь основания
+            const floorArea = data.length * data.width;
+
+            // Добавляем 10% на подрезку
+            quantityRequired = floorArea * 1.1;
+            break;
+          }
           // 🪵 ЧЕРНОВОЙ ПОЛ
           case 'floors_subfloor': {
             const boardLength = shortSide;
@@ -775,61 +928,6 @@ export const CalculatorPage = () => {
 
             // Применяем коэффициенты
             quantityRequired = volume;
-            break;
-          }
-
-          case 'insulation': {
-            // 🧱 ТЕПЛОИЗОЛЯЦИЯ
-            const floorArea = baseArea * data.floors; // площадь полов (м²)
-            const shortSide = Math.min(data.length, data.width); // ширина дома
-
-            // Высота фронтона
-            const gableHeight = data.roofHeight;
-            const rafterBaseLength = Math.sqrt(
-              Math.pow(gableHeight, 2) + Math.pow(shortSide / 2, 2),
-            ); // (м)
-
-            // Общая площадь изоляции
-            let totalArea = floorArea; // (м²)
-
-            if (insulationType) {
-              // Площадь внутренней крыши (до сруба)
-              const roofArea = longSide * rafterBaseLength * 2; // 2 ската (м²)
-
-              totalArea += roofArea;
-            }
-
-            // Количество (м²)
-            quantityRequired = totalArea; // (м²)
-
-            break; // обычное добавление
-          }
-
-          case 'vapor_barrier': {
-            // 🧺 ПАРОИЗОЛЯЦИОННАЯ ПЛЁНКА (как утеплитель)
-            const floorArea = baseArea * data.floors * 2;
-            const shortSide = Math.min(data.length, data.width);
-            const horizontalOverhang = 0.527; // выступ (м)
-            const halfBase = shortSide / 2; // половина основания (м)
-            const totalHalfBase = halfBase + horizontalOverhang; // половина основания + выступ (м)
-
-            // Высота фронтона
-            const gableHeight = data.roofHeight;
-            const rafterBaseLength = Math.sqrt(
-              Math.pow(gableHeight, 2) + Math.pow(shortSide / 2, 2),
-            );
-            const rafterLength = Math.sqrt(Math.pow(gableHeight, 2) + Math.pow(totalHalfBase, 2)); // длина ската (м)
-
-            // Площадь внутренней крыши (до сруба)
-            const baseRoofArea = longSide * rafterBaseLength * 2;
-            const roofArea = (longSide + 1.4) * rafterLength * 2;
-
-            // Общая площадь плёнки
-            const totalArea = floorArea + roofArea + baseRoofArea;
-
-            // Количество (м²)
-            quantityRequired = totalArea;
-
             break;
           }
 
