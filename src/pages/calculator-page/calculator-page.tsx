@@ -102,7 +102,7 @@ export const CalculatorPage = () => {
       }
 
       const baseArea = data.length * data.width;
-      const totalArea = baseArea * data.floors;
+      const totalArea = baseArea * (data.floors === 1 ? 1 : 2);
       const perimeter = (data.length + data.width) * 2;
       const totalWallHeight =
         data.ceilingHeights.length === 1
@@ -466,13 +466,15 @@ export const CalculatorPage = () => {
             // Площадь крыши (2 ската с выступами)
             const roofArea = (longSide + 1.4) * rafterLength * 2;
 
+            console.log(roofArea);
+
             if (insulationType === false) {
               // ❄️ Холодная кровля: только пароизоляция в 1 слой
               quantityRequired = roofArea;
             } else {
               // 🔥 Тёплая кровля: полный пирог (считаем как площадь × 2 слоя пароизоляции + утеплитель)
               // Для упрощения считаем общую площадь материалов
-              quantityRequired = roofArea * 2.2; // +20% на нахлёст и второй слой
+              quantityRequired = roofArea; // +20% на нахлёст и второй слой
             }
             break;
           }
@@ -488,7 +490,7 @@ export const CalculatorPage = () => {
             const ceilingArea = data.length * data.width;
 
             // Добавляем 10% на подрезку и нахлёст
-            quantityRequired = ceilingArea * 1.1;
+            quantityRequired = ceilingArea;
             break;
           }
 
@@ -547,7 +549,7 @@ export const CalculatorPage = () => {
             const floorArea = data.length * data.width;
 
             // Добавляем 10% на подрезку
-            quantityRequired = floorArea * 1.1;
+            quantityRequired = floorArea;
             break;
           }
 
@@ -562,7 +564,7 @@ export const CalculatorPage = () => {
             const floorArea = data.length * data.width;
 
             // Добавляем 10% на подрезку
-            quantityRequired = floorArea * 1.1;
+            quantityRequired = floorArea;
             break;
           }
           // 🪵 ЧЕРНОВОЙ ПОЛ
@@ -817,7 +819,6 @@ export const CalculatorPage = () => {
           }
 
           case 'addit_foundation_piles': {
-            console.log('ss');
             const area = data.length * data.width;
             const floorValue = data.floors == 2 ? 2 : 1;
 

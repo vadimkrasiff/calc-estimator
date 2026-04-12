@@ -108,7 +108,7 @@ const CALCULATION_TYPE_LABELS: Record<string, string> = {
   walls_logs_kiln_drying: 'Камерная сушка бруса', // ✅ Новая позиция
   walls_logs_cup_cutting: 'Нарезка чаш', // ✅ Новая позиция
   bottom_binding: 'Нижняя обвязка',
-  floors_beams: 'Лаги пола',
+  floors_beams: 'Лаги для 1 этажа',
   floors_subfloor: 'Черновой пол',
   ceilings_beams: 'Балки перекрытия',
   roofs_trusses: 'Стропила',

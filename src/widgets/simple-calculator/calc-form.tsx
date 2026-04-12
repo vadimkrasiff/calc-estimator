@@ -22,6 +22,7 @@ import {
   Space,
   Input,
   Tooltip,
+  Tag,
 } from 'antd';
 import {
   SaveOutlined,
@@ -123,6 +124,40 @@ const FOUNDATION_TYPE_OPTIONS = [
   { label: 'Плитный', value: 'slab' },
   { label: 'Столбчатый', value: 'column' },
 ];
+// ✅ Группирует роли по трём категориям (без добавления/удаления)
+const groupRoles = (roles: { key: string; label: string; category?: number }[]) => {
+  const roofKeys = [
+    'roofs_trusses',
+    'roofs_sheathing',
+    'roofing_material',
+    'roof_battens',
+    'insulation',
+    'vapor_barrier',
+  ];
+  const foundationKeys = [
+    'foundation_piles',
+    'foundation_strip',
+    'foundation_slab',
+    'foundation_columns',
+    'addit_foundation_piles',
+  ];
+
+  const roof: typeof roles = [];
+  const loghouse: typeof roles = [];
+  const foundation: typeof roles = [];
+
+  roles.forEach(role => {
+    if (roofKeys.includes(role.key)) {
+      roof.push(role);
+    } else if (foundationKeys.includes(role.key)) {
+      foundation.push(role);
+    } else {
+      loghouse.push(role);
+    }
+  });
+
+  return { roof, loghouse, foundation };
+};
 
 export const SimpleCalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
   const [form] = Form.useForm<CalculatorFormData>();
@@ -559,112 +594,155 @@ export const SimpleCalculatorForm = ({ onSubmit, loading }: CalculatorFormProps)
               let allRoles = foundationRole ? [...baseRoles, foundationRole] : baseRoles;
               allRoles = additFoundationRole ? [...allRoles, additFoundationRole] : allRoles;
 
+              // ✅ Группируем роли
+              const { roof, loghouse, foundation } = groupRoles(allRoles);
+
+              // Компонент для рендеринга одного поля материала
+              const renderMaterialField = (role: {
+                key: string;
+                label: string;
+                category?: number;
+              }) => (
+                <Flex key={role.key} gap={12} align="flex-start" style={{ marginBottom: 16 }}>
+                  <Form.Item
+                    name={role.key}
+                    label={role.label}
+                    style={{ flex: 2, marginBottom: 0 }}
+                  >
+                    <Select
+                      placeholder="Выберите материал"
+                      showSearch
+                      allowClear
+                      optionFilterProp="children"
+                      filterOption={(input, option) =>
+                        `${option?.label || ''}`.toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {materials
+                        .filter(material => material.categoryId === role?.category)
+                        .map(material => (
+                          <Select.Option
+                            key={material.id}
+                            value={material.id.toString()}
+                            label={`${material.name} ${material.unit === 'м³' && `(${material.width}×${material.height} мм)`}`}
+                          >
+                            {material.name}{' '}
+                            {material.unit === 'м³' && `(${material.width}×${material.height} мм)`}
+                          </Select.Option>
+                        ))}
+                    </Select>
+                  </Form.Item>
+
+                  <Form.Item
+                    noStyle
+                    shouldUpdate={(prev, curr) => prev[role.key] !== curr[role.key]}
+                  >
+                    {() => {
+                      const selectedMaterialId = getFieldValue([role.key]);
+                      const selectedMaterial = materials.find(
+                        m => m.id.toString() === selectedMaterialId,
+                      );
+
+                      return (
+                        <Form.Item
+                          name={`${role.key}_quantity`}
+                          label="Количество"
+                          className="flex-1"
+                          rules={[
+                            {
+                              type: 'number',
+                              min: 0,
+                              message: 'Количество должно быть положительным числом',
+                            },
+                          ]}
+                        >
+                          <InputNumber
+                            placeholder="Введите количество"
+                            style={{ width: '100%' }}
+                            min={0}
+                            precision={2}
+                            addonAfter={selectedMaterial?.unit || ''}
+                          />
+                        </Form.Item>
+                      );
+                    }}
+                  </Form.Item>
+
+                  <Form.Item
+                    name={`${role.key}_labor_price`}
+                    label={
+                      <span>
+                        Цена работы
+                        <Tooltip title="Стоимость работ за единицу материала">
+                          <QuestionCircleOutlined style={{ marginLeft: 4, color: '#999' }} />
+                        </Tooltip>
+                      </span>
+                    }
+                    style={{ flex: 1, marginBottom: 0 }}
+                  >
+                    <InputNumber
+                      placeholder="Цена работы"
+                      style={{ width: '100%' }}
+                      min={0}
+                      step={10}
+                      precision={2}
+                      addonAfter="руб."
+                    />
+                  </Form.Item>
+                </Flex>
+              );
+
               return (
                 <>
                   <Divider size="small" />
                   <Form.Item>
                     <Typography.Title level={5}>Материалы</Typography.Title>
                   </Form.Item>
-                  {allRoles.map(role => (
-                    <Flex key={role.key} gap={12} align="flex-start" style={{ marginBottom: 16 }}>
-                      <Form.Item
-                        name={role.key}
-                        label={role.label}
-                        style={{ flex: 2, marginBottom: 0 }}
-                        // rules={[{ required: true, message: 'Выберите материал' }]}
-                      >
-                        <Select
-                          placeholder="Выберите материал"
-                          showSearch
-                          allowClear
-                          optionFilterProp="children"
-                          filterOption={(input, option) =>
-                            `${option?.label || ''}`.toLowerCase().includes(input.toLowerCase())
-                          }
-                        >
-                          {materials
-                            .filter(material => material.categoryId === role?.category)
-                            .map(material => (
-                              <Select.Option
-                                key={material.id}
-                                value={material.id.toString()}
-                                label={`${material.name}  ${material.unit === 'м³' && `(${material.width}×${material.height} мм)`}`}
-                              >
-                                {material.name}{' '}
-                                {material.unit === 'м³' &&
-                                  `(${material.width}×${material.height} мм)`}
-                              </Select.Option>
-                            ))}
-                        </Select>
-                      </Form.Item>
 
-                      {/* Поле для ввода количества - отображается только при выборе материала */}
+                  {/* 🏠 ГРУППА 1: КРЫША */}
+                  {roof.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
+                        <Tag color="orange" style={{ fontSize: 12 }}>
+                          🏠 Крыша
+                        </Tag>
+                        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                          Стропила, обрешётка, кровля, утепление
+                        </Typography.Text>
+                      </Flex>
+                      <div style={{ paddingLeft: 8 }}>{roof.map(renderMaterialField)}</div>
+                    </div>
+                  )}
 
-                      <Form.Item
-                        noStyle
-                        shouldUpdate={(prev, curr) => prev[role.key] !== curr[role.key]}
-                      >
-                        {() => {
-                          const selectedMaterialId = getFieldValue([role.key]);
-                          // if (!selectedMaterialId) return null;
+                  {/* 🪵 ГРУППА 2: СРУБ */}
+                  {loghouse.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
+                        <Tag color="blue" style={{ fontSize: 12 }}>
+                          🪵 Сруб
+                        </Tag>
+                        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                          Брус, лаги, обвязка, межвенцовый утеплитель
+                        </Typography.Text>
+                      </Flex>
+                      <div style={{ paddingLeft: 8 }}>{loghouse.map(renderMaterialField)}</div>
+                    </div>
+                  )}
 
-                          // Найти информацию о выбранном материале
-                          const selectedMaterial = materials.find(
-                            m => m.id.toString() === selectedMaterialId,
-                          );
-
-                          return (
-                            <Form.Item
-                              name={`${role.key}_quantity`}
-                              label="Количество"
-                              className="flex-1"
-                              rules={[
-                                // {
-                                //   required: true,
-                                //   message: 'Введите количество',
-                                // },
-                                {
-                                  type: 'number',
-                                  min: 0,
-                                  message: 'Количество должно быть положительным числом',
-                                },
-                              ]}
-                            >
-                              <InputNumber
-                                placeholder="Введите количество"
-                                style={{ width: '100%' }}
-                                min={0}
-                                precision={2}
-                                addonAfter={selectedMaterial?.unit || ''}
-                              />
-                            </Form.Item>
-                          );
-                        }}
-                      </Form.Item>
-
-                      <Form.Item
-                        name={`${role.key}_labor_price`}
-                        label={
-                          <span>
-                            Цена работы
-                            <Tooltip title="Стоимость работ за единицу материала">
-                              <QuestionCircleOutlined style={{ marginLeft: 4, color: '#999' }} />
-                            </Tooltip>
-                          </span>
-                        }
-                        style={{ flex: 1, marginBottom: 0 }}
-                      >
-                        <InputNumber
-                          placeholder="Цена работы"
-                          style={{ width: '100%' }}
-                          min={0}
-                          step={10}
-                          precision={2}
-                          addonAfter="руб."
-                        />
-                      </Form.Item>
-                    </Flex>
-                  ))}
+                  {/* 🏗️ ГРУППА 3: ФУНДАМЕНТ */}
+                  {foundation.length > 0 && (
+                    <div style={{ marginBottom: 24 }}>
+                      <Flex align="center" gap={8} style={{ marginBottom: 12 }}>
+                        <Tag color="green" style={{ fontSize: 12 }}>
+                          🏗️ Фундамент
+                        </Tag>
+                        <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                          Сваи, лента, плита или столбы
+                        </Typography.Text>
+                      </Flex>
+                      <div style={{ paddingLeft: 8 }}>{foundation.map(renderMaterialField)}</div>
+                    </div>
+                  )}
                 </>
               );
             }}

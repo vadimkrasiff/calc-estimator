@@ -194,10 +194,16 @@ export const CalculationFormula = ({
   const perimeter = (dimensions.length + dimensions.width) * 2;
   const totalWallHeight = (coefficients.ceilingHeight?.[0] || 2.8) * dimensions.floors;
   const wallArea = perimeter * totalWallHeight;
-  const roofPitch = coefficients.roofPitch || 0.5;
-  const pitchFactor = Math.sqrt(1 + roofPitch * roofPitch);
-  const roofArea = baseArea * pitchFactor;
+  const roofPitch = coefficients.roofHeight || 0.5;
+  const shortSide = Math.min(dimensions.length, dimensions.width);
+  const longSide = Math.max(dimensions.length, dimensions.width);
 
+  const horizontalOverhang = 0.527; // выступ (м)
+  const halfBase = shortSide / 2; // половина основания (м)
+  const totalHalfBase = halfBase + horizontalOverhang; // половина основания + выступ (м)
+  const rafterLength = Math.sqrt(Math.pow(roofPitch, 2) + Math.pow(totalHalfBase, 2)); // длина ската (м)
+
+  const roofArea = (longSide + 1.4) * rafterLength * 2;
   // Определяем короткую и длинную стороны
   // const shortSide = Math.min(dimensions.length, dimensions.width);
   // const longSide = Math.max(dimensions.length, dimensions.width);

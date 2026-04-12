@@ -455,7 +455,6 @@ export const CalculatorForm = ({ onSubmit, loading }: CalculatorFormProps) => {
       delete (finalValues as AnyType).walls_logs_cup_cutting_price;
     }
 
-    console.log('Отправка данных:', finalValues);
     onSubmit(finalValues);
   };
 
